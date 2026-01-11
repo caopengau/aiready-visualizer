@@ -5,7 +5,8 @@ include makefiles/Makefile.shared.mk
 
 .PHONY: publish npm-publish npm-login npm-check npm-publish-all \
         version-patch version-minor version-major release-patch release-minor \
-        publish-core publish-pattern-detect npm-publish-core npm-publish-pattern-detect
+        publish-core publish-pattern-detect npm-publish-core npm-publish-pattern-detect \
+        pull sync-from-spoke
 
 # Default owner for GitHub repos
 OWNER ?= caopengau
@@ -105,5 +106,21 @@ npm-publish-core: ## Publish @aiready/core to npm (shortcut for: make npm-publis
 npm-publish-pattern-detect: ## Publish @aiready/pattern-detect to npm (shortcut for: make npm-publish SPOKE=pattern-detect)
 	@$(MAKE) npm-publish SPOKE=pattern-detect OTP=$(OTP)
 
-npm-publish-all: build npm-publish-core npm-publish-pattern-detect ## Build and publish all packages to npm
+npm-publish-all: build npm-publish-core npm-publish
+
+# Sync changes from spoke repos back to monorepo (for external contributions)
+sync-from-spoke: ## Sync changes from spoke repo back to monorepo. Usage: make sync-from-spoke SPOKE=pattern-detect
+	$(call require_spoke)
+	@$(call log_step,Syncing changes from aiready-$(SPOKE) back to monorepo...)
+	@url="https://github.com/$(OWNER)/aiready-$(SPOKE).git"; \
+	remote="aiready-$(SPOKE)"; \
+	git remote add "$$remote" "$$url" 2>/dev/null || git remote set-url "$$remote" "$$url"; \
+	$(call log_info,Fetching latest from $$remote...); \
+	git fetch "$$remote" $(TARGET_BRANCH); \
+	$(call log_info,Pulling changes into packages/$(SPOKE)...); \
+	git subtree pull --prefix=packages/$(SPOKE) "$$remote" $(TARGET_BRANCH) --squash -m "chore: sync $(SPOKE) from public repo"; \
+	$(call log_success,Synced changes from aiready-$(SPOKE))
+
+pull: ## Alias for sync-from-spoke. Usage: make pull SPOKE=pattern-detect
+	@$(MAKE) sync-from-spoke SPOKE=$(SPOKE)-pattern-detect ## Build and publish all packages to npm
 	@$(call log_success,All packages published to npm)
