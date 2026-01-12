@@ -95,22 +95,24 @@ program
       )
     );
 
-    // Show breakdown by pattern type
-    console.log(chalk.cyan('\n━'.repeat(60)));
-    console.log(chalk.bold.white('  PATTERNS BY TYPE'));
-    console.log(chalk.cyan('━'.repeat(60)) + '\n');
-
+    // Show breakdown by pattern type (only if duplicates exist)
     const sortedTypes = Object.entries(summary.patternsByType)
       .filter(([, count]) => count > 0)
       .sort(([, a], [, b]) => b - a);
 
-    sortedTypes.forEach(([type, count]) => {
-      const icon = getPatternIcon(type as PatternType);
-      console.log(`${icon} ${chalk.white(type.padEnd(15))} ${chalk.bold(count)}`);
-    });
+    if (sortedTypes.length > 0) {
+      console.log(chalk.cyan('\n━'.repeat(60)));
+      console.log(chalk.bold.white('  PATTERNS BY TYPE'));
+      console.log(chalk.cyan('━'.repeat(60)) + '\n');
+
+      sortedTypes.forEach(([type, count]) => {
+        const icon = getPatternIcon(type as PatternType);
+        console.log(`${icon} ${chalk.white(type.padEnd(15))} ${chalk.bold(count)}`);
+      });
+    }
 
     // Show top duplicates
-    if (summary.topDuplicates.length > 0) {
+    if (summary.topDuplicates.length > 0 && totalIssues > 0) {
       console.log(chalk.cyan('\n━'.repeat(60)));
       console.log(chalk.bold.white('  TOP DUPLICATE PATTERNS'));
       console.log(chalk.cyan('━'.repeat(60)) + '\n');
@@ -161,12 +163,20 @@ program
       });
     }
 
+    // Show a success message if no duplicates
+    if (totalIssues === 0) {
+      console.log(chalk.green('\n✨ Great! No duplicate patterns detected.\n'));
+    }
+
     console.log(chalk.cyan('━'.repeat(60)));
-    console.log(
-      chalk.white(
-        `\n💡 Run with ${chalk.bold('--output json')} or ${chalk.bold('--output html')} for detailed reports\n`
-      )
-    );
+    
+    if (totalIssues > 0) {
+      console.log(
+        chalk.white(
+          `\n💡 Run with ${chalk.bold('--output json')} or ${chalk.bold('--output html')} for detailed reports\n`
+        )
+      );
+    }
   });
 
 function getPatternIcon(type: PatternType): string {
