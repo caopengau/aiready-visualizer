@@ -81,7 +81,7 @@ publish: ## Publish spoke to GitHub. Usage: make publish SPOKE=pattern-detect [O
 	git subtree split --prefix=packages/$(SPOKE) -b "$$branch" >/dev/null; \
 	$(call log_info,Subtree split complete: $$branch); \
 	git push -f "$$remote" "$$branch":$(TARGET_BRANCH); \
-	$(call log_success,Published @aiready/$(SPOKE) to $(TARGET_BRANCH))
+	$(call log_success,Synced @aiready/$(SPOKE) to GitHub spoke repo ($(TARGET_BRANCH)))
 
 # Generic release targets (version bump + build + publish)
 release-patch: ## Release spoke patch version. Usage: make release-patch SPOKE=pattern-detect [OTP=123456]
