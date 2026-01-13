@@ -63,9 +63,20 @@ function getRefactoringSuggestion(
  * Determine smart defaults based on repository size estimation
  */
 async function getSmartDefaults(directory: string, userOptions: Partial<PatternDetectOptions>): Promise<PatternDetectOptions> {
-  // If user explicitly disabled smart defaults, return empty (no smart defaults)
+  // If user explicitly disabled smart defaults, return conservative defaults
   if (userOptions.useSmartDefaults === false) {
-    return {};
+    return {
+      rootDir: directory,
+      minSimilarity: 0.6,
+      minLines: 8,
+      batchSize: 100,
+      approx: true,
+      minSharedTokens: 12,
+      maxCandidatesPerBlock: 5,
+      streamResults: false,
+      severity: 'all',
+      includeTests: false,
+    };
   }
 
   // Quick size estimation by scanning files first
@@ -91,22 +102,22 @@ async function getSmartDefaults(directory: string, userOptions: Partial<PatternD
   // Based on empirical performance: ~100,000 block-candidate comparisons per second
   
   // maxCandidatesPerBlock: scale inversely with repo size to maintain ~30s target
-  const maxCandidatesPerBlock = Math.max(10, Math.min(100, Math.floor(80000 / estimatedBlocks)));
+  const maxCandidatesPerBlock = Math.max(3, Math.min(10, Math.floor(30000 / estimatedBlocks)));
   
   // minSimilarity: increase with repo size to reduce noise in large repos
-  const minSimilarity = Math.min(0.65, 0.4 + (estimatedBlocks / 15000) * 0.25);
+  const minSimilarity = Math.min(0.75, 0.5 + (estimatedBlocks / 10000) * 0.25);
   
   // minLines: increase with repo size to focus on substantial duplications
-  const minLines = Math.max(5, Math.min(10, 5 + Math.floor(estimatedBlocks / 3000)));
+  const minLines = Math.max(6, Math.min(12, 6 + Math.floor(estimatedBlocks / 2000)));
   
   // minSharedTokens: increase with repo size for better pre-filtering
-  const minSharedTokens = Math.max(8, Math.min(15, 8 + Math.floor(estimatedBlocks / 4000)));
+  const minSharedTokens = Math.max(10, Math.min(20, 10 + Math.floor(estimatedBlocks / 2000)));
   
   // batchSize: larger for better I/O efficiency in bigger repos
-  const batchSize = estimatedBlocks > 2000 ? 300 : 150;
+  const batchSize = estimatedBlocks > 1000 ? 200 : 100;
 
   // severity: focus on high-impact issues in very large repos
-  const severity = estimatedBlocks > 8000 ? 'high' : 'all';
+  const severity = estimatedBlocks > 5000 ? 'high' : 'all';
 
   let defaults: PatternDetectOptions = {
     rootDir: directory,

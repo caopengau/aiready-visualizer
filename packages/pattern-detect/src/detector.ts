@@ -346,11 +346,21 @@ export async function detectDuplicatePatterns(
 
     const block1 = allBlocks[i];
 
-    // Build candidate list (approx mode)
+    // Build candidate list (approx mode) - much more aggressive filtering
     let candidates: Array<{ j: number; shared: number }> | null = null;
     if (approx) {
       const counts: Map<number, number> = new Map();
-      for (const tok of blockTokens[i]) {
+      const block1Tokens = new Set(blockTokens[i]);
+      const block1Size = block1Tokens.size;
+      
+      // Only consider tokens that are not too common (appear in < 10% of blocks)
+      const rareTokens = blockTokens[i].filter(tok => {
+        const blocksWithToken = invertedIndex.get(tok)?.length || 0;
+        return blocksWithToken < allBlocks.length * 0.1; // < 10% of blocks
+      });
+      
+      // Use only rare tokens for candidate selection to avoid noise from common tokens
+      for (const tok of rareTokens) {
         const ids = invertedIndex.get(tok);
         if (!ids) continue;
         for (const j of ids) {
@@ -359,10 +369,21 @@ export async function detectDuplicatePatterns(
           counts.set(j, (counts.get(j) || 0) + 1);
         }
       }
+      
+      // Filter candidates more aggressively:
+      // - Must share at least minSharedTokens
+      // - Must share at least minSharedTokens
+      // - Must share at least 30% of the smaller block's tokens (to ensure substantial overlap)
       candidates = Array.from(counts.entries())
-        .filter(([, shared]) => shared >= minSharedTokens)
+        .filter(([j, shared]) => {
+          const block2Tokens = blockTokens[j];
+          const block2Size = block2Tokens.length;
+          const minSize = Math.min(block1Size, block2Size);
+          const sharedPercentage = shared / minSize;
+          return shared >= minSharedTokens && sharedPercentage >= 0.3;
+        })
         .sort((a, b) => b[1] - a[1])
-        .slice(0, maxCandidatesPerBlock)
+        .slice(0, Math.min(maxCandidatesPerBlock, 5)) // Even more aggressive limit
         .map(([j, shared]) => ({ j, shared }));
     }
 

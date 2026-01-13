@@ -14,20 +14,20 @@ program
   .name('aiready-patterns')
   .description('Detect duplicate patterns in your codebase')
   .version('0.1.0')
-  .addHelpText('after', '\nCONFIGURATION:\n  Supports config files: aiready.json, aiready.config.json, .aiready.json, .aireadyrc.json, aiready.config.js, .aireadyrc.js\n  CLI options override config file settings')
+  .addHelpText('after', '\nCONFIGURATION:\n  Supports config files: aiready.json, aiready.config.json, .aiready.json, .aireadyrc.json, aiready.config.js, .aireadyrc.js\n  CLI options override config file settings\n\nPARAMETER TUNING:\n  If you get too few results: decrease --similarity, --min-lines, or --min-shared-tokens\n  If analysis is too slow: increase --min-lines, --min-shared-tokens, or decrease --max-candidates\n  If you get too many false positives: increase --similarity or --min-lines\n\nEXAMPLES:\n  aiready-patterns .                                    # Basic analysis with smart defaults\n  aiready-patterns . --similarity 0.3 --min-lines 3     # More sensitive detection\n  aiready-patterns . --max-candidates 50 --no-approx    # Slower but more thorough\n  aiready-patterns . --output json > report.json       # JSON export')
   .argument('<directory>', 'Directory to analyze')
-  .option('-s, --similarity <number>', 'Minimum similarity score (0-1)')
-  .option('-l, --min-lines <number>', 'Minimum lines to consider')
-  .option('--batch-size <number>', 'Batch size for comparisons')
-  .option('--no-approx', 'Disable approximate candidate selection (faster on small repos, slower on large)')
-  .option('--min-shared-tokens <number>', 'Minimum shared tokens to consider a candidate')
-  .option('--max-candidates <number>', 'Maximum candidates per block')
+  .option('-s, --similarity <number>', 'Minimum similarity score (0-1). Lower = more results, higher = fewer but more accurate. Default: 0.4')
+  .option('-l, --min-lines <number>', 'Minimum lines to consider. Lower = more results, higher = faster analysis. Default: 5')
+  .option('--batch-size <number>', 'Batch size for comparisons. Higher = faster but more memory. Default: 100')
+  .option('--no-approx', 'Disable approximate candidate selection. Slower but more thorough on small repos')
+  .option('--min-shared-tokens <number>', 'Minimum shared tokens to consider a candidate. Higher = faster, fewer results. Default: 8')
+  .option('--max-candidates <number>', 'Maximum candidates per block. Higher = more thorough but slower. Default: 100')
   .option('--no-stream-results', 'Disable incremental output (default: enabled)')
   .option('--include <patterns>', 'File patterns to include (comma-separated)')
   .option('--exclude <patterns>', 'File patterns to exclude (comma-separated)')
-  .option('--severity <level>', 'Filter by severity: critical|high|medium|all')
+  .option('--severity <level>', 'Filter by severity: critical|high|medium|all. Default: all')
   .option('--include-tests', 'Include test files in analysis (excluded by default)')
-  .option('--max-results <number>', 'Maximum number of results to show in console output')
+  .option('--max-results <number>', 'Maximum number of results to show in console output. Default: 10')
   .option(
     '-o, --output <format>',
     'Output format: console, json, html',
@@ -226,6 +226,22 @@ program
     // Show a success message if no duplicates
     if (totalIssues === 0) {
       console.log(chalk.green('\n✨ Great! No duplicate patterns detected.\n'));
+      console.log(chalk.yellow('💡 If you expected to find duplicates, try adjusting parameters:'));
+      console.log(chalk.dim('   • Lower similarity threshold: --similarity 0.3'));
+      console.log(chalk.dim('   • Reduce minimum lines: --min-lines 3'));
+      console.log(chalk.dim('   • Include test files: --include-tests'));
+      console.log(chalk.dim('   • Lower shared tokens threshold: --min-shared-tokens 5'));
+      console.log('');
+    }
+
+    // Show guidance if very few results
+    if (totalIssues > 0 && totalIssues < 5) {
+      console.log(chalk.yellow('\n💡 Few results found. To find more duplicates, try:'));
+      console.log(chalk.dim('   • Lower similarity threshold: --similarity 0.3'));
+      console.log(chalk.dim('   • Reduce minimum lines: --min-lines 3'));
+      console.log(chalk.dim('   • Include test files: --include-tests'));
+      console.log(chalk.dim('   • Lower shared tokens threshold: --min-shared-tokens 5'));
+      console.log('');
     }
 
     console.log(chalk.cyan(divider));

@@ -388,6 +388,136 @@ Use these presets to quickly balance precision, recall, and runtime:
   - `minLines 8–10` → `minSharedTokens 8–10` (precision-first)
 - Default balance: `minLines=5`, `minSharedTokens=8` works well for most repos. Reduce `minSharedTokens` only when you specifically want to catch more short helpers.
 
+## 🎯 Parameter Tuning Guide
+
+### When You Get Too Few Results
+
+If the tool finds fewer duplicates than expected, try these adjustments in order:
+
+**1. Lower similarity threshold** (most effective)
+```bash
+# Default: 0.4, try lowering to find more potential duplicates
+aiready-patterns ./src --similarity 0.3    # More sensitive
+aiready-patterns ./src --similarity 0.2    # Very sensitive (may include noise)
+```
+*Tradeoff: More results but potentially more false positives*
+
+**2. Reduce minimum lines**
+```bash
+# Default: 5, try lowering to catch smaller functions/utilities
+aiready-patterns ./src --min-lines 3        # Include very small functions
+aiready-patterns ./src --min-lines 1        # Include almost everything
+```
+*Tradeoff: More results but slower analysis and more noise*
+
+**3. Lower shared tokens threshold**
+```bash
+# Default: 8, try lowering to expand candidate pool
+aiready-patterns ./src --min-shared-tokens 5  # More candidates
+aiready-patterns ./src --min-shared-tokens 3  # Many more candidates
+```
+*Tradeoff: More results but slower analysis*
+
+**4. Include test files**
+```bash
+aiready-patterns ./src --include-tests
+```
+*Tradeoff: More results but may include test-specific patterns*
+
+**5. Increase max candidates per block**
+```bash
+# Default: 100, try increasing for more thorough search
+aiready-patterns ./src --max-candidates 200  # More thorough
+```
+*Tradeoff: Slower analysis but more comprehensive*
+
+### When Analysis is Too Slow
+
+If the tool takes too long to run, try these optimizations in order:
+
+**1. Increase minimum lines** (most effective)
+```bash
+# Default: 5, try increasing to focus on substantial functions
+aiready-patterns ./src --min-lines 10       # Focus on larger functions
+aiready-patterns ./src --min-lines 15       # Only major functions
+```
+*Tradeoff: Faster but may miss small but important duplicates*
+
+**2. Increase shared tokens threshold**
+```bash
+# Default: 8, try increasing to reduce candidate pool
+aiready-patterns ./src --min-shared-tokens 12  # Fewer candidates
+aiready-patterns ./src --min-shared-tokens 15  # Much fewer candidates
+```
+*Tradeoff: Faster but may miss some duplicates*
+
+**3. Reduce max candidates per block**
+```bash
+# Default: 100, try reducing for faster analysis
+aiready-patterns ./src --max-candidates 50   # Faster
+aiready-patterns ./src --max-candidates 20   # Much faster
+```
+*Tradeoff: Faster but may miss some duplicates*
+
+**4. Increase similarity threshold**
+```bash
+# Default: 0.4, try increasing to reduce comparisons
+aiready-patterns ./src --similarity 0.6     # Fewer but more obvious duplicates
+```
+*Tradeoff: Faster but fewer results*
+
+**5. Analyze by module/directory**
+```bash
+# Instead of analyzing the entire repo, analyze specific directories
+aiready-patterns ./src/api --min-lines 8
+aiready-patterns ./src/components --min-lines 8
+```
+*Tradeoff: Need to run multiple commands but each is faster*
+
+### When You Get Too Many False Positives
+
+If the results include many irrelevant duplicates:
+
+**1. Increase similarity threshold**
+```bash
+# Default: 0.4, try increasing for more accurate matches
+aiready-patterns ./src --similarity 0.6     # More accurate
+aiready-patterns ./src --similarity 0.8     # Very accurate
+```
+*Tradeoff: Fewer results but higher quality*
+
+**2. Increase minimum lines**
+```bash
+# Default: 5, try increasing to focus on substantial duplicates
+aiready-patterns ./src --min-lines 10       # Larger patterns only
+```
+*Tradeoff: Fewer results but more significant ones*
+
+**3. Use severity filtering**
+```bash
+aiready-patterns ./src --severity high      # Only >90% similar
+aiready-patterns ./src --severity critical  # Only >95% similar
+```
+*Tradeoff: Fewer results but highest quality*
+
+**4. Exclude specific patterns**
+```bash
+# Exclude generated files, migrations, etc.
+aiready-patterns ./src --exclude "**/migrations/**,**/generated/**"
+```
+*Tradeoff: Fewer results but more relevant ones*
+
+### Quick Troubleshooting Reference
+
+| Problem | Symptom | Solution | Tradeoff |
+|---------|---------|----------|----------|
+| **No results** | "No duplicate patterns detected" | Lower `--similarity` to 0.3 | More noise |
+| **Few results** | <5 duplicates found | Lower `--min-lines` to 3 | Slower analysis |
+| **Too slow** | Takes >30 seconds | Increase `--min-lines` to 10 | Misses small duplicates |
+| **Too many results** | 100+ duplicates | Increase `--similarity` to 0.6 | Misses subtle duplicates |
+| **False positives** | Many irrelevant matches | Use `--severity critical` | Fewer results |
+| **Memory issues** | Out of memory error | Analyze by directory | Multiple commands needed |
+
 **CLI Options:**
 - `--stream-results` - Output duplicates as found (enabled by default)
 - `--no-approx` - Disable approximate mode (slower, O(B²) complexity, use with caution)
