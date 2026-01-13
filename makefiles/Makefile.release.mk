@@ -110,7 +110,10 @@ release-one: ## Release one spoke: TYPE=patch|minor|major, SPOKE=core|pattern-de
 	$(MAKE) -C $(ROOT_DIR) build; \
 	$(call log_success,Build complete); \
 	$(call log_step,Publishing @aiready/$(SPOKE) to npm...); \
-	$(MAKE) -C $(ROOT_DIR) npm-publish SPOKE=$(SPOKE) OTP=$(OTP); \
+	if ! $(MAKE) -C $(ROOT_DIR) npm-publish SPOKE=$(SPOKE) OTP=$(OTP); then \
+		$(call log_error,NPM publish failed for @aiready/$(SPOKE). Aborting release.); \
+		exit 1; \
+	fi; \
 	$(call log_step,Syncing GitHub spoke for @aiready/$(SPOKE)...); \
 	$(MAKE) -C $(ROOT_DIR) publish SPOKE=$(SPOKE) OWNER=$(OWNER); \
 	$(call log_step,Pushing monorepo branch and tags...); \
