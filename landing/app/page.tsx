@@ -41,7 +41,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 mb-6 bg-blue-50 text-blue-700 text-sm font-medium rounded-full border border-blue-200">
             <span>🚀</span>
-            <span>Trusted by 50+ development teams</span>
+            <span>Open Source & Free</span>
           </div>
           
           <h1 className="text-5xl md:text-6xl font-bold text-slate-900 mb-6 leading-tight">
@@ -95,12 +95,12 @@ export default function HomePage() {
             <div className="text-slate-600">Analysis Time</div>
           </div>
           <div>
-            <div className="text-4xl font-bold text-blue-600 mb-2">91%</div>
+            <div className="text-4xl font-bold text-blue-600 mb-2">High</div>
             <div className="text-slate-600">Detection Accuracy</div>
           </div>
           <div>
-            <div className="text-4xl font-bold text-blue-600 mb-2">40%</div>
-            <div className="text-slate-600">Context Token Savings</div>
+            <div className="text-4xl font-bold text-blue-600 mb-2">Free</div>
+            <div className="text-slate-600">Forever</div>
           </div>
         </div>
       </section>
@@ -189,8 +189,8 @@ export default function HomePage() {
                 ))}
               </div>
               <p className="text-slate-700 mb-4">
-                "AIReady helped us identify 200+ semantic duplicates across our React components. 
-                Our AI context windows are now 35% more efficient."
+                "AIReady helped us identify semantic duplicates across our React components. 
+                Our AI context windows are now much more efficient."
               </p>
               <div className="text-sm text-slate-600">
                 <strong>Sarah Chen</strong>, Senior Engineer at TechFlow
@@ -205,7 +205,7 @@ export default function HomePage() {
               </div>
               <p className="text-slate-700 mb-4">
                 "The consistency checker caught naming inconsistencies that would have confused 
-                our AI pair programmer for weeks. Game changer for our workflow."
+                our AI pair programmer. Really helpful for our workflow."
               </p>
               <div className="text-sm text-slate-600">
                 <strong>Mike Rodriguez</strong>, Tech Lead at DevCorp
