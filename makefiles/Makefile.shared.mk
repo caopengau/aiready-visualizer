@@ -14,6 +14,9 @@ PACKAGES := core pattern-detect
 # Override with: export AWS_PROFILE=your-profile
 AWS_PROFILE ?= aiready
 AWS_REGION ?= ap-southeast-2
+# Notifications (defaults for solo founder)
+SES_TO_EMAIL ?= caopengau@gmail.com
+SLACK_WEBHOOK_URL ?=
 
 # Color definitions
 RED        := $(shell printf '\033[0;31m')    # color: #FF0000
