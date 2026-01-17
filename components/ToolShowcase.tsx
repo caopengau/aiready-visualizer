@@ -14,9 +14,9 @@ const tools = [
     package: "@aiready/pattern-detect",
     color: "from-blue-600 to-cyan-500",
     stats: [
-      { metric: "Accuracy", value: 95 },
-      { metric: "Speed", value: 98 },
-      { metric: "Coverage", value: 92 },
+      { metric: "Accuracy", value: 94 },
+      { metric: "Speed", value: 72 },
+      { metric: "Coverage", value: 88 },
     ],
   },
   {
@@ -27,9 +27,9 @@ const tools = [
     package: "@aiready/context-analyzer",
     color: "from-cyan-600 to-teal-500",
     stats: [
-      { metric: "Accuracy", value: 93 },
-      { metric: "Speed", value: 95 },
-      { metric: "Coverage", value: 97 },
+      { metric: "Accuracy", value: 98 },
+      { metric: "Speed", value: 96 },
+      { metric: "Coverage", value: 85 },
     ],
   },
   {
@@ -40,9 +40,9 @@ const tools = [
     package: "@aiready/consistency",
     color: "from-purple-600 to-pink-500",
     stats: [
-      { metric: "Accuracy", value: 97 },
-      { metric: "Speed", value: 94 },
-      { metric: "Coverage", value: 95 },
+      { metric: "Accuracy", value: 91 },
+      { metric: "Speed", value: 99 },
+      { metric: "Coverage", value: 93 },
     ],
   },
 ];
