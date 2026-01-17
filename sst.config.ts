@@ -26,6 +26,12 @@ export default $config({
         SUBMISSIONS_BUCKET: submissions.name,
         SES_TO_EMAIL: process.env.SES_TO_EMAIL || "",
       },
+      permissions: [
+        {
+          actions: ["ses:SendEmail", "ses:SendRawEmail"],
+          resources: ["*"],
+        },
+      ],
     });
 
     // Deploy as static site - animations and charts work perfectly in client-side mode
