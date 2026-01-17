@@ -79,7 +79,7 @@ export default function RootLayout({
     "@type": "Organization",
     "name": "AIReady",
     "url": "https://getaiready.dev",
-    "logo": "https://getaiready.dev/logo-text.png",
+    "logo": "https://getaiready.dev/logo-transparent-bg.png",
     "description": "Free tools to optimize your codebase for AI collaboration",
     "sameAs": [
       "https://github.com/caopengau/aiready-cli",
@@ -133,7 +133,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased overflow-x-hidden`}
       >
         {children}
       </body>
