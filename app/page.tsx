@@ -149,12 +149,116 @@ export default function HomePage() {
                 </span>
               </h2>
               <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Detect issues that traditional linters miss, optimize for AI context windows, 
-                and maintain consistency across your team.
+                Identify what confuses AI models, optimize context usage, 
+                and unlock better AI collaboration—locally and safely.
               </p>
             </motion.div>
             
             <ToolShowcase />
+          </div>
+        </ParallaxSection>
+      </section>
+
+      {/* Not Another Linter Section */}
+      <section className="container mx-auto px-4 py-20 bg-gradient-to-b from-slate-50 to-white">
+        <ParallaxSection offset={15}>
+          <div className="max-w-6xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-4xl md:text-5xl font-black text-slate-900 mb-4">
+                This is{" "}
+                <span className="bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">
+                  NOT
+                </span>{" "}
+                Another Linter
+              </h2>
+              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
+                Linters check code correctness. AIReady checks AI understandability.
+              </p>
+            </motion.div>
+            
+            <div className="grid md:grid-cols-2 gap-8 mb-12">
+              <motion.div
+                initial={{ opacity: 0, x: -30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                viewport={{ once: true }}
+                className="bg-white p-8 rounded-2xl border-2 border-slate-200 shadow-lg"
+              >
+                <div className="text-4xl mb-4">🔧</div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">Traditional Linters</h3>
+                <ul className="space-y-3 text-slate-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-1">→</span>
+                    <span>Check syntax and style</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-1">→</span>
+                    <span>Catch common bugs</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-500 mt-1">→</span>
+                    <span>Enforce team conventions</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 mt-1">✓</span>
+                    <span className="font-semibold">Optimize for humans</span>
+                  </li>
+                </ul>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6 }}
+                viewport={{ once: true }}
+                className="bg-gradient-to-br from-blue-50 to-purple-50 p-8 rounded-2xl border-2 border-blue-300 shadow-lg"
+              >
+                <div className="text-4xl mb-4">🤖</div>
+                <h3 className="text-2xl font-bold text-slate-900 mb-4">AIReady</h3>
+                <ul className="space-y-3 text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-500 mt-1">→</span>
+                    <span>Find semantic duplicates</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-500 mt-1">→</span>
+                    <span>Measure context window costs</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-purple-500 mt-1">→</span>
+                    <span>Detect pattern inconsistencies</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-green-500 mt-1">✓</span>
+                    <span className="font-semibold">Optimize for AI collaboration</span>
+                  </li>
+                </ul>
+              </motion.div>
+            </div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              viewport={{ once: true }}
+              className="bg-gradient-to-r from-blue-500 to-purple-500 p-1 rounded-2xl"
+            >
+              <div className="bg-white p-8 rounded-xl text-center">
+                <p className="text-2xl font-bold text-slate-900 mb-4">
+                  ESLint says "your code is fine." <br />
+                  AIReady says "your code confuses AI."
+                </p>
+                <p className="text-slate-600">
+                  Both are correct. They measure different things.
+                </p>
+              </div>
+            </motion.div>
           </div>
         </ParallaxSection>
       </section>
@@ -258,7 +362,7 @@ export default function HomePage() {
                   viewport={{ once: true }}
                   className="text-4xl md:text-5xl font-black text-white mb-4"
                 >
-                  Ready to optimize your codebase?
+                  See Why AI Struggles with Your Code
                 </motion.h2>
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
@@ -267,7 +371,7 @@ export default function HomePage() {
                   viewport={{ once: true }}
                   className="text-slate-300 mb-8 text-xl"
                 >
-                  Get started in seconds. No signup required.
+                  Find AI confusion points in 5 minutes. Local. Safe. Free forever.
                 </motion.p>
                 
                 <motion.div
@@ -337,12 +441,16 @@ export default function HomePage() {
                   answer: "Yes! All our tools are free and open source. You can run them locally with npx @aiready/cli scan . or request a free audit report above.",
                 },
                 {
-                  question: "What languages do you support?",
-                  answer: "Currently TypeScript/JavaScript, with Python and Java support coming soon. Our tools work with any codebase that has AST parsing available.",
+                  question: "Where does my code go?",
+                  answer: "Nowhere. Everything runs locally on your machine. Zero network calls. No code upload. No SaaS. Air-gap compatible. See our Security page for full details.",
                 },
                 {
-                  question: "How does this help with AI coding assistants?",
-                  answer: "AI models work better with clean, consistent code. Our tools eliminate semantic duplicates, optimize context windows, and ensure naming consistency that AI models can better understand and work with.",
+                  question: "Is this another linter?",
+                  answer: "No. Linters check code correctness. AIReady checks AI understandability. We find semantic duplicates, context fragmentation, and pattern inconsistencies that confuse AI models—things ESLint can't detect.",
+                },
+                {
+                  question: "What languages do you support?",
+                  answer: "Currently TypeScript/JavaScript, with Python and Java support coming soon. Our tools work with any codebase that has AST parsing available.",
                 },
                 {
                   question: "Can I contribute to the project?",

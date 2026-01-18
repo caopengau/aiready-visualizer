@@ -73,8 +73,9 @@ export default function AnimatedHero() {
 
       {/* Description */}
       <motion.p variants={itemVariants} className="text-xl md:text-2xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed">
-        Transform your codebase for{" "}
-        <span className="font-semibold text-slate-900">AI collaboration</span>. Detect semantic duplicates, optimize context windows, and maintain consistency—all in seconds.
+        <span className="font-semibold text-slate-900">Your AI tools aren't broken. Your codebase confuses them.</span>
+        <br />
+        See why Copilot struggles and where small changes unlock outsized AI leverage—in 5 minutes.
       </motion.p>
 
       {/* CTA Buttons */}
