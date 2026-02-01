@@ -1,4 +1,3 @@
-"use client";
 import meta from './metrics-that-actually-matter.meta';
 import React from 'react';
 import CodeBlock from '../../components/CodeBlock';

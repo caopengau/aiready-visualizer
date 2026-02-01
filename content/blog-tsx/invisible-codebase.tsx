@@ -1,4 +1,3 @@
-"use client";
 import meta from './invisible-codebase.meta';
 import React from 'react';
 import CodeBlock from '../../components/CodeBlock';

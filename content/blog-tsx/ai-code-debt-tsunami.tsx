@@ -1,4 +1,3 @@
-"use client";
 import meta from './ai-code-debt-tsunami.meta';
 import React from 'react';
 import CodeBlock from '../../components/CodeBlock';

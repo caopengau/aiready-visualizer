@@ -1,5 +1,5 @@
 "use client";
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github-dark.css';
 
@@ -9,12 +9,11 @@ interface CodeBlockProps {
 }
 
 const CodeBlock: React.FC<CodeBlockProps> = ({ children, lang }) => {
-  const codeRef = useRef<HTMLPreElement>(null);
   const [copied, setCopied] = useState(false);
   const language = lang || 'typescript';
 
   // Process children to fix indentation issues
-  const cleanCode = React.useMemo(() => {
+  const cleanCode = useMemo(() => {
     // Normalize children to a string if possible
     let raw: string;
     if (typeof children === 'string') {
@@ -57,23 +56,37 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, lang }) => {
     return dedented;
   }, [children]);
 
-  useEffect(() => {
-    if (codeRef.current) {
-      const codeEl = codeRef.current.querySelector('code');
-      if (codeEl) {
-        // Clear previous highlighting
-        codeEl.removeAttribute('data-highlighted');
-        hljs.highlightElement(codeEl);
+  // Highlight the code synchronously
+  const highlightedCode = useMemo(() => {
+    if (typeof cleanCode === 'string') {
+      try {
+        const result = hljs.highlight(cleanCode, { language });
+        return result.value;
+      } catch (e) {
+        return cleanCode;
       }
     }
+    return '';
   }, [cleanCode, language]);
 
   const handleCopy = async () => {
-    const text = typeof cleanCode === 'string' ? cleanCode : (codeRef.current?.innerText || '');
+    const text = typeof cleanCode === 'string' ? cleanCode : '';
     await navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (typeof cleanCode !== 'string') {
+    return (
+      <div className="group relative my-8 overflow-hidden rounded-2xl code-block shadow-lg">
+        <pre className="rounded-2xl overflow-x-auto p-4 text-sm leading-snug">
+          <code className={`language-${language} font-mono block whitespace-pre`}>
+            {cleanCode}
+          </code>
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <div className="group relative my-8 overflow-hidden rounded-2xl code-block shadow-lg">
@@ -115,12 +128,12 @@ const CodeBlock: React.FC<CodeBlockProps> = ({ children, lang }) => {
 
       {/* Code body */}
       <pre
-        ref={codeRef}
         className="rounded-b-2xl overflow-x-auto p-4 text-sm leading-snug"
       >
-        <code className={`language-${language} font-mono block whitespace-pre`}>
-          {cleanCode}
-        </code>
+        <code 
+          className={`language-${language} font-mono block whitespace-pre hljs`}
+          dangerouslySetInnerHTML={{ __html: highlightedCode }}
+        />
       </pre>
     </div>
   );
