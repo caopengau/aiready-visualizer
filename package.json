@@ -21,6 +21,13 @@
     "./switch": "./dist/components/switch.js",
     "./textarea": "./dist/components/textarea.js",
     "./select": "./dist/components/select.js",
+    "./utils/cn": "./dist/utils/cn.js",
+    "./utils/colors": "./dist/utils/colors.js",
+    "./utils/formatters": "./dist/utils/formatters.js",
+    "./hooks/useDebounce": "./dist/hooks/useDebounce.js",
+    "./hooks/useD3": "./dist/hooks/useD3.js",
+    "./hooks/useForceSimulation": "./dist/hooks/useForceSimulation.js",
+    "./charts/ForceDirectedGraph": "./dist/charts/ForceDirectedGraph.js",
     "./tailwind-config": "./tailwind.config.js"
   },
   "files": [
@@ -58,13 +65,16 @@
     "@aiready/core": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "d3-force": "^3.0.0",
     "tailwind-merge": "^2.6.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.5",
+    "@testing-library/react": "^16.1.0",
+    "@types/d3": "^7.4.3",
     "@types/react": "^19.0.6",
     "@types/react-dom": "^19.0.3",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/jest-dom": "^6.6.5",
     "tailwindcss": "^4.1.14",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
