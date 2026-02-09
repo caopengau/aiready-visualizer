@@ -1,6 +1,6 @@
 # @aiready/visualizer
 
-Interactive graph visualization for AIReady analysis results.
+Interactive graph visualization for analysis results produced by `aiready-cli`.
 
 ## Overview
 
@@ -87,7 +87,7 @@ interface GraphData {
 
 This package follows the hub-and-spoke pattern:
 
-- **Hub**: Monorepo at `aiready`
+- **Hub**: `@aiready/core` (HUB) and the public CLI `aiready-cli`
 - **Spoke**: Independent repo at `aiready-visualizer`
 - **Integration**: With `@aiready/components` for UI
 

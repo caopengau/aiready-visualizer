@@ -121,7 +121,7 @@ The current HTML output is a simple placeholder. Phase 2 will add:
 - **Filters**: Filter by severity, file type, metrics, etc.
 - **Multiple Layouts**: Force-directed, hierarchical, radial, circular
 
-### Phase 3: Integration with AIReady CLI
+-### Phase 3: Integration with aiready-cli
 
 - Integrate with `@aiready/cli` for unified analysis
 - Generate visualizations from real analysis data
@@ -130,7 +130,7 @@ The current HTML output is a simple placeholder. Phase 2 will add:
 
 ## Architecture
 
-The visualizer follows AIReady's hub-and-spoke pattern:
+The visualizer follows the hub-and-spoke pattern used by the project:
 
 ```
 @aiready/core (HUB)
