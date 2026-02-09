@@ -6,8 +6,8 @@
 
 import { readFileSync, writeFileSync } from 'fs';
 import { resolve } from 'path';
-import { GraphBuilder } from './graph/builder.js';
-import type { VisualizationGraph } from './types.js';
+import { GraphBuilder } from './graph/builder';
+import type { GraphData } from './types';
 
 interface CLIOptions {
   rootDir: string;
@@ -18,39 +18,18 @@ interface CLIOptions {
 /**
  * Generate a sample graph for testing
  */
-function generateSampleGraph(rootDir: string): VisualizationGraph {
+function generateSampleGraph(rootDir: string): GraphData {
   const builder = new GraphBuilder(rootDir);
 
   // Add some sample nodes
-  builder.addFileNode('src/index.ts', {
-    tokenCost: 2000,
-    linesOfCode: 150,
-    dependencies: 3,
-    imports: 5,
-    exports: 2,
-  });
-
-  builder.addFileNode('src/utils/helper.ts', {
-    tokenCost: 1000,
-    linesOfCode: 80,
-    dependencies: 1,
-    imports: 2,
-    exports: 4,
-  });
-
-  builder.addFileNode('src/components/App.tsx', {
-    tokenCost: 3000,
-    linesOfCode: 200,
-    dependencies: 5,
-    imports: 8,
-    exports: 1,
-    duplicatePatterns: 2,
-  });
+  builder.addNode('src/index.ts', 'entry', 20);
+  builder.addNode('src/utils/helper.ts', 'helpers', 12);
+  builder.addNode('src/components/App.tsx', 'app', 28);
 
   // Add some edges
-  builder.addDependencyEdge('src/index.ts', 'src/components/App.tsx', 1);
-  builder.addDependencyEdge('src/index.ts', 'src/utils/helper.ts', 2);
-  builder.addDependencyEdge('src/components/App.tsx', 'src/utils/helper.ts', 3);
+  builder.addEdge('src/index.ts', 'src/components/App.tsx', 'dependency');
+  builder.addEdge('src/index.ts', 'src/utils/helper.ts', 'dependency');
+  builder.addEdge('src/components/App.tsx', 'src/utils/helper.ts', 'dependency');
 
   return builder.build();
 }
@@ -58,161 +37,96 @@ function generateSampleGraph(rootDir: string): VisualizationGraph {
 /**
  * Generate HTML with embedded visualization
  */
-function generateHTML(graph: VisualizationGraph): string {
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AIReady Visualization</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
-    }
-    #root {
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      gap: 2rem;
-    }
-    h1 {
-      font-size: 2rem;
-      background: linear-gradient(to right, #60a5fa, #a78bfa);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .stats {
-      display: flex;
-      gap: 2rem;
-      font-size: 1rem;
-    }
-    .stat {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .stat-value {
-      font-size: 2rem;
-      font-weight: bold;
-      color: #60a5fa;
-    }
-    .stat-label {
-      font-size: 0.875rem;
-      color: #94a3b8;
-    }
-    .message {
-      text-align: center;
-      max-width: 600px;
-      line-height: 1.6;
-      color: #cbd5e1;
-    }
-    canvas {
-      border: 1px solid #1e293b;
-      border-radius: 8px;
-      background: #1e293b;
-    }
-  </style>
-</head>
-<body>
-  <div id="root">
-    <h1>🎯 AIReady Visualization</h1>
-    <div class="stats">
-      <div class="stat">
-        <div class="stat-value">${graph.metadata.totalNodes}</div>
-        <div class="stat-label">Files</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">${graph.metadata.totalEdges}</div>
-        <div class="stat-label">Dependencies</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">${graph.metadata.connectedComponents}</div>
-        <div class="stat-label">Components</div>
-      </div>
-      <div class="stat">
-        <div class="stat-value">${graph.metadata.circularDependencies.length}</div>
-        <div class="stat-label">Circular Deps</div>
+function generateHTML(graph: GraphData): string {
+  const payload = JSON.stringify(graph, null, 2);
+  return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIReady Visualization</title>
+    <style>
+      html,body { height: 100%; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0 }
+      #container { display:flex; height:100vh }
+      #panel { width: 320px; padding: 16px; background: #071130; box-shadow: -2px 0 8px rgba(0,0,0,0.3); overflow:auto }
+      #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center }
+      canvas { background: #0b1220; border-radius:8px }
+      .stat { margin-bottom:12px }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="canvasWrap"><canvas id="canvas" width="1200" height="800"></canvas></div>
+      <div id="panel">
+        <h2>AIReady Visualization</h2>
+        <div class="stat"><strong>Files:</strong> <span id="stat-files"></span></div>
+        <div class="stat"><strong>Dependencies:</strong> <span id="stat-deps"></span></div>
+        <div class="stat"><strong>Note:</strong> Relatedness is represented by node proximity and size; related edges are not drawn to reduce clutter.</div>
       </div>
     </div>
-    <canvas id="canvas" width="1200" height="700"></canvas>
-    <div class="message">
-      <p><strong>Interactive visualization coming soon!</strong></p>
-      <p>This is a placeholder. The React + d3-force frontend will be integrated next.</p>
-    </div>
-  </div>
-  
-  <script>
-    // Embedded graph data
-    const graphData = ${JSON.stringify(graph, null, 2)};
-    
-    // Simple canvas rendering for now
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Simple force simulation (placeholder)
-    const nodes = graphData.nodes.map((node, i) => ({
-      ...node,
-      x: 600 + Math.cos(i / graphData.nodes.length * Math.PI * 2) * 200,
-      y: 350 + Math.sin(i / graphData.nodes.length * Math.PI * 2) * 200,
-      vx: 0,
-      vy: 0
-    }));
-    
-    function draw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw edges
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 1;
-      graphData.edges.forEach(edge => {
-        const source = nodes.find(n => n.id === edge.source);
-        const target = nodes.find(n => n.id === edge.target);
-        if (source && target) {
+
+    <script>
+      const graphData = ${payload};
+      document.getElementById('stat-files').textContent = graphData.metadata.totalFiles;
+      document.getElementById('stat-deps').textContent = graphData.metadata.totalDependencies;
+
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
+
+      // Simple layout: circle layout
+      const nodes = graphData.nodes.map((n, i) => ({
+        ...n,
+        x: canvas.width/2 + Math.cos(i / graphData.nodes.length * Math.PI * 2) * (Math.min(canvas.width, canvas.height)/3),
+        y: canvas.height/2 + Math.sin(i / graphData.nodes.length * Math.PI * 2) * (Math.min(canvas.width, canvas.height)/3),
+      }));
+
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw edges with type-based styling; related edges are faint and thin
+          graphData.edges.forEach(edge => {
+          const s = nodes.find(n => n.id === edge.source);
+          const t = nodes.find(n => n.id === edge.target);
+          if (!s || !t) return;
+            // skip rendering 'related' edges as lines to reduce clutter
+            if (edge.type === 'related') return;
+          if (edge.type === 'similarity') {
+            ctx.strokeStyle = '#fb7e81';
+            ctx.lineWidth = 1.2;
+          } else if (edge.type === 'dependency') {
+            ctx.strokeStyle = '#84c1ff';
+            ctx.lineWidth = 1.0;
+          } else if (edge.type === 'reference') {
+            ctx.strokeStyle = '#ffa500';
+            ctx.lineWidth = 0.9;
+          } else {
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.8;
+          }
           ctx.beginPath();
-          ctx.moveTo(source.x, source.y);
-          ctx.lineTo(target.x, target.y);
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(t.x, t.y);
           ctx.stroke();
-        }
-      });
-      
-      // Draw nodes
-      nodes.forEach(node => {
-        const radius = 8 + (node.metrics.tokenCost / 500);
-        
-        // Node circle
-        ctx.beginPath();
-        ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = node.issues?.severity === 'critical' ? '#ef4444' :
-                         node.issues?.severity === 'major' ? '#f59e0b' :
-                         node.issues?.severity === 'minor' ? '#eab308' :
-                         '#60a5fa';
-        ctx.fill();
-        
-        // Label
-        ctx.fillStyle = '#e2e8f0';
-        ctx.font = '10px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(node.label, node.x, node.y + radius + 12);
-      });
-    }
-    
-    draw();
-    
-    console.log('Graph data:', graphData);
-  </script>
-</body>
+        });
+
+        // Draw nodes
+        nodes.forEach(n => {
+          const r = 6 + ((n.size || 1) / 2);
+          ctx.beginPath();
+          ctx.fillStyle = '#60a5fa';
+          ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+          ctx.fill();
+
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.label || n.id.split('/').slice(-1)[0], n.x, n.y + r + 12);
+        });
+      }
+
+      draw();
+    </script>
+  </body>
 </html>`;
 }
 
