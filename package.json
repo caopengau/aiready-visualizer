@@ -1,54 +1,57 @@
 {
   "name": "@aiready/visualizer",
   "version": "0.1.0",
-  "description": "Interactive visualization tool for AIReady codebase analysis",
+  "description": "Interactive graph visualization for AIReady analysis results",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
   "bin": {
     "aiready-visualize": "./dist/cli.js"
   },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./graph": {
+      "import": "./dist/graph/index.js",
+      "types": "./dist/graph/index.d.ts"
+    }
+  },
   "files": [
     "dist",
-    "README.md",
-    "LICENSE"
+    "web/dist"
   ],
   "scripts": {
     "dev": "tsup --watch",
-    "build": "tsup",
-    "build:web": "cd web && pnpm build",
-    "dev:web": "cd web && pnpm dev",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
-    "test": "vitest",
-    "clean": "rm -rf dist web/dist"
+    "dev:web": "cd web && vite",
+    "build": "tsup && cd web && vite build",
+    "build:cli": "tsup",
+    "build:web": "cd web && vite build",
+    "typecheck": "tsc --noEmit && cd web && tsc --noEmit",
+    "test": "vitest"
   },
   "keywords": [
     "aiready",
     "visualization",
     "graph",
-    "dependencies",
-    "codebase",
-    "analysis"
+    "d3",
+    "dependency-graph"
   ],
-  "author": "AIReady",
+  "author": "Peng Cao <caopengau@gmail.com>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/caopengau/aiready-visualizer.git"
+  },
   "dependencies": {
-    "@aiready/core": "workspace:*"
+    "@aiready/core": "workspace:*",
+    "commander": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   }
 }

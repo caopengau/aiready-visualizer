@@ -1,16 +1,14 @@
 # @aiready/visualizer
 
-Interactive visualization tool for AIReady codebase analysis.
+Interactive graph visualization for AIReady analysis results.
 
-## Features
+## Overview
 
-- 🎯 **Dependency Graph Visualization**: See your codebase structure at a glance
-- 🔥 **Hotspot Detection**: Identify problematic files with high token costs and duplicates
-- 🔄 **Circular Dependencies**: Detect and highlight circular dependency chains
-- 🎨 **Interactive**: Zoom, pan, filter, and explore your codebase
-- 📊 **Multiple Views**: Force-directed, hierarchical, radial, and cluster layouts
-- 🚀 **Performance**: Handles large codebases (1000+ files) smoothly
-- 💾 **Standalone HTML**: Single file output with embedded data
+This package provides tools to transform AIReady analysis results into interactive force-directed graph visualizations. It consists of:
+
+- **Graph Builder**: Transforms analysis data into graph structures
+- **CLI Tool**: Generates standalone HTML visualizations
+- **Type Definitions**: Comprehensive TypeScript types for graph data
 
 ## Installation
 
@@ -20,83 +18,82 @@ pnpm add @aiready/visualizer
 
 ## Usage
 
-### CLI
-
-```bash
-# Generate visualization from current directory
-aiready-visualize . output.html --open
-
-# From specific directory
-aiready-visualize ./src my-graph.html
-```
-
-### Programmatic API
+### As a Library
 
 ```typescript
-import { GraphBuilder } from '@aiready/visualizer';
+import { buildGraph, createSampleGraph } from '@aiready/visualizer';
 
-// Create a graph
-const builder = new GraphBuilder('./src');
+// Build graph from analysis results
+const graph = buildGraph(analysisResults);
 
-// Add nodes
-builder.addFileNode('src/index.ts', {
-  tokenCost: 2000,
-  linesOfCode: 150,
-  dependencies: 3,
-});
+// Or create a sample graph for testing
+const sampleGraph = createSampleGraph();
 
-// Add edges
-builder.addDependencyEdge('src/index.ts', 'src/utils/helper.ts', 2);
-
-// Build graph
-const graph = builder.build();
-
-console.log(`Graph: ${graph.metadata.totalNodes} nodes, ${graph.metadata.totalEdges} edges`);
+console.log(`Graph has ${graph.nodes.length} nodes and ${graph.edges.length} edges`);
 ```
+
+### As a CLI Tool
+
+```bash
+# Generate a sample visualization
+aiready-visualize sample -o visualization.html
+
+# Generate from analysis results (Phase 4B)
+aiready-visualize generate results.json -o visualization.html
+```
+
+## Data Structure
+
+The visualizer uses a comprehensive graph data structure:
+
+```typescript
+interface GraphData {
+  nodes: FileNode[];        // Files in the codebase
+  edges: DependencyEdge[];  // Import/dependency relationships
+  clusters: Cluster[];      // Domain/module groupings
+  issues: IssueOverlay[];   // Detected issues
+  metadata: GraphMetadata;  // Aggregate information
+}
+```
+
+### Node Properties
+
+- **Metrics**: Lines of code, token cost, complexity
+- **Issues**: Duplicates, inconsistencies count
+- **Categorization**: Domain, module type
+- **Visual**: Color, size, group
+
+### Edge Properties
+
+- **Type**: import, require, dynamic
+- **Weight**: Dependency strength
+- **Visual**: Color, width, label
+
+## Development Status
+
+**Phase 4A (Current)**: CLI package foundation
+- ✅ Type definitions
+- ✅ Graph builder with sample data
+- ✅ Basic CLI structure
+- ⏳ HTML generation (Phase 4B)
+
+**Phase 4B (Next)**: Interactive frontend
+- Vite + React setup
+- ForceDirectedGraph integration
+- Controls and filters
+- Standalone HTML output
 
 ## Architecture
 
-The visualizer follows AIReady's hub-and-spoke pattern:
+This package follows the hub-and-spoke pattern:
 
-- **Hub**: `@aiready/core` (shared utilities)
-- **Spoke**: `@aiready/visualizer` (graph visualization)
-- **Integration**: Via `@aiready/cli`
+- **Hub**: Monorepo at `aiready`
+- **Spoke**: Independent repo at `aiready-visualizer`
+- **Integration**: With `@aiready/components` for UI
 
-## Technology Stack
+## Contributing
 
-- **Layout Engine**: d3-force (physics-based force-directed layouts)
-- **Rendering**: Canvas (high-performance) + SVG (static exports)
-- **Frontend**: React + Vite (coming soon)
-- **Output**: Standalone HTML with embedded data
-
-## Development
-
-```bash
-# Install dependencies
-pnpm install
-
-# Build package
-pnpm build
-
-# Watch mode
-pnpm dev
-
-# Test CLI
-pnpm build && node dist/cli.js . test.html --open
-```
-
-## Roadmap
-
-- [x] Graph builder with circular dependency detection
-- [x] Basic CLI with HTML generation
-- [x] Simple canvas rendering
-- [ ] React + d3-force interactive frontend
-- [ ] Multiple layout algorithms (hierarchical, radial, circular)
-- [ ] Filters (severity, type, metrics)
-- [ ] Search and highlight
-- [ ] Node details panel
-- [ ] Export to PNG/SVG
-- [ ] Integration with @aiready/cli
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development guidelines.
 
 ## License
 

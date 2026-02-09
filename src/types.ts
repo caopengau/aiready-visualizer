@@ -2,208 +2,165 @@
  * Core types for graph visualization
  */
 
-export type SeverityLevel = 'critical' | 'major' | 'minor' | 'info';
-export type NodeType = 'file' | 'directory' | 'external';
-export type EdgeType = 'import' | 'export' | 'type-dependency';
-export type LayoutType = 'force' | 'hierarchical' | 'radial' | 'circular';
-export type ColorByOption = 'severity' | 'tokenCost' | 'duplicates' | 'domain' | 'fileType';
-export type SizeByOption = 'linesOfCode' | 'tokenCost' | 'dependencies' | 'exports' | 'issues';
+/**
+ * Severity levels for issues
+ */
+export type IssueSeverity = 'critical' | 'major' | 'minor' | 'info';
 
 /**
- * Node metrics from analysis tools
+ * Base graph node (compatible with d3-force SimulationNodeDatum)
  */
-export interface NodeMetrics {
-  tokenCost: number;
-  linesOfCode: number;
-  dependencies: number;
-  imports: number;
-  exports: number;
-  duplicatePatterns: number;
-  cohesionScore: number;
-  fragmentationScore: number;
+export interface BaseGraphNode {
+  id: string;
+  x?: number;
+  y?: number;
+  vx?: number;
+  vy?: number;
+  fx?: number | null;
+  fy?: number | null;
 }
 
 /**
- * Issue information for a node
+ * Base graph link (compatible with d3-force SimulationLinkDatum)
  */
-export interface NodeIssues {
-  severity: SeverityLevel;
-  count: number;
-  types: string[]; // ['duplicate-pattern', 'circular-dep', 'high-token-cost', etc.]
+export interface BaseGraphLink {
+  source: string | BaseGraphNode;
+  target: string | BaseGraphNode;
+  index?: number;
 }
 
 /**
- * Graph node representing a file/directory
+ * File node in the dependency graph
  */
-export interface GraphNode {
-  id: string; // Unique identifier (file path)
-  label: string; // Display name
-  type: NodeType;
+export interface FileNode extends BaseGraphNode {
+  id: string;
+  path: string;
+  label: string;
   
-  // Analysis data
-  metrics: NodeMetrics;
-  issues?: NodeIssues;
+  // Metrics
+  linesOfCode?: number;
+  tokenCost?: number;
+  complexity?: number;
   
-  // Visual properties (computed by layout or user preferences)
-  position?: { x: number; y: number };
-  size?: number;
-  color?: string;
+  // Issue counts
+  duplicates?: number;
+  inconsistencies?: number;
   
-  // Grouping
+  // Categorization
   domain?: string;
-  clusterId?: string;
+  moduleType?: 'component' | 'util' | 'service' | 'config' | 'test' | 'other';
   
-  // Additional metadata
-  extension?: string;
-  relativePath?: string;
+  // Visual properties (from GraphNode)
+  color?: string;
+  size?: number;
+  group?: string;
 }
 
 /**
- * Graph edge representing a dependency
+ * Dependency edge between files
  */
-export interface GraphEdge {
-  source: string; // Node ID
-  target: string; // Node ID
-  type: EdgeType;
-  weight: number; // Strength of dependency (e.g., number of imports)
+export interface DependencyEdge extends BaseGraphLink {
+  source: string | FileNode;
+  target: string | FileNode;
   
-  // Visual properties
+  // Edge properties
+  type?: 'import' | 'require' | 'dynamic';
+  weight?: number;
+  
+  // Visual properties (from GraphLink)
   color?: string;
   width?: number;
-  
-  // Flags
-  isCircular?: boolean;
-  isCriticalPath?: boolean;
+  label?: string;
 }
 
 /**
- * Cluster/domain grouping
+ * Domain or module cluster
  */
-export interface GraphCluster {
+export interface Cluster {
   id: string;
-  domain: string;
-  nodes: string[]; // Node IDs
-  metrics: {
-    totalTokens: number;
-    avgCohesion: number;
-    fragmentationScore: number;
-  };
-  
-  // Visual properties
+  name: string;
+  nodeIds: string[];
   color?: string;
-  bounds?: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  };
+  description?: string;
 }
 
 /**
- * Graph metadata and statistics
+ * Issue overlay on the graph
+ */
+export interface IssueOverlay {
+  id: string;
+  type: 'duplicate' | 'circular-dependency' | 'inconsistency' | 'high-cost' | 'complexity';
+  severity: IssueSeverity;
+  nodeIds: string[];
+  edgeIds?: string[];
+  message: string;
+  details?: string;
+}
+
+/**
+ * Complete graph data structure
+ */
+export interface GraphData {
+  nodes: FileNode[];
+  edges: DependencyEdge[];
+  clusters: Cluster[];
+  issues: IssueOverlay[];
+  metadata: GraphMetadata;
+}
+
+/**
+ * Metadata about the graph
  */
 export interface GraphMetadata {
-  totalNodes: number;
-  totalEdges: number;
-  avgDegree: number;
-  density: number;
-  connectedComponents: number;
-  circularDependencies: string[][]; // Array of circular dependency chains
-  generatedAt: string;
-  rootDir: string;
+  projectName?: string;
+  timestamp: string;
+  totalFiles: number;
+  totalDependencies: number;
+  analysisTypes: string[];
+  
+  // Aggregate metrics
+  totalLinesOfCode?: number;
+  totalTokenCost?: number;
+  averageComplexity?: number;
+  
+  // Issue counts
+  criticalIssues: number;
+  majorIssues: number;
+  minorIssues: number;
+  infoIssues: number;
 }
 
 /**
- * Complete visualization graph structure
+ * Filter options for the visualization
  */
-export interface VisualizationGraph {
-  nodes: GraphNode[];
-  edges: GraphEdge[];
-  clusters: GraphCluster[];
-  metadata: GraphMetadata;
+export interface FilterOptions {
+  severities?: IssueSeverity[];
+  issueTypes?: IssueOverlay['type'][];
+  domains?: string[];
+  moduleTypes?: FileNode['moduleType'][];
+  minTokenCost?: number;
+  maxTokenCost?: number;
+  showOnlyIssues?: boolean;
+}
+
+/**
+ * Layout configuration
+ */
+export interface LayoutConfig {
+  type: 'force' | 'hierarchical' | 'circular' | 'radial';
+  chargeStrength?: number;
+  linkDistance?: number;
+  collisionRadius?: number;
 }
 
 /**
  * Visualization configuration
  */
 export interface VisualizationConfig {
-  layout: LayoutType;
-  colorBy: ColorByOption;
-  sizeBy: SizeByOption;
+  layout: LayoutConfig;
+  filters: FilterOptions;
+  colorBy: 'severity' | 'domain' | 'moduleType' | 'tokenCost';
+  sizeBy: 'tokenCost' | 'loc' | 'complexity' | 'duplicates';
   showLabels: boolean;
   showClusters: boolean;
-  showCircularDeps: boolean;
-  filters: GraphFilters;
-}
-
-/**
- * Filter options for graph display
- */
-export interface GraphFilters {
-  minTokenCost?: number;
-  maxTokenCost?: number;
-  severity?: SeverityLevel[];
-  nodeTypes?: NodeType[];
-  fileExtensions?: string[];
-  domains?: string[];
-  excludeExternal?: boolean;
-  excludeTests?: boolean;
-  showOnlyIssues?: boolean;
-}
-
-/**
- * Options for generating visualizations
- */
-export interface VisualizeOptions {
-  rootDir: string;
-  output: string;
-  analysis?: any; // Pre-computed analysis results (from @aiready/cli)
-  layout?: LayoutType;
-  colorBy?: ColorByOption;
-  sizeBy?: SizeByOption;
-  filters?: Partial<GraphFilters>;
-  showIssues?: boolean;
-  openInBrowser?: boolean;
-}
-
-/**
- * Layout configuration for d3-force
- */
-export interface ForceLayoutConfig {
-  chargeStrength: number;
-  linkDistance: number;
-  linkStrength: number;
-  centerStrength: number;
-  collisionRadius: number;
-  alphaDecay: number;
-  velocityDecay: number;
-}
-
-/**
- * Interactive state for the visualization
- */
-export interface VisualizationState {
-  selectedNode?: string;
-  hoveredNode?: string;
-  highlightedNodes: Set<string>;
-  highlightedEdges: Set<string>;
-  filters: GraphFilters;
-  config: VisualizationConfig;
-  searchQuery: string;
-  zoom: number;
-  pan: { x: number; y: number };
-}
-
-/**
- * Color scheme definition
- */
-export interface ColorScheme {
-  critical: string;
-  major: string;
-  minor: string;
-  info: string;
-  default: string;
-  domain: string[];
-  background: string;
-  text: string;
 }
