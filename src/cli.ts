@@ -117,9 +117,47 @@ function generateHTML(graph: GraphData): string {
           ctx.lineTo(t.x, t.y);
           ctx.stroke();
         });
+        // Draw package boundaries (group boxes)
+        const groups = {};
+        nodes.forEach(n => {
+          const g = n.group || '__default';
+          if (!groups[g]) groups[g] = { minX: n.x, minY: n.y, maxX: n.x, maxY: n.y };
+          groups[g].minX = Math.min(groups[g].minX, n.x);
+          groups[g].minY = Math.min(groups[g].minY, n.y);
+          groups[g].maxX = Math.max(groups[g].maxX, n.x);
+          groups[g].maxY = Math.max(groups[g].maxY, n.y);
+        });
 
-          // Draw nodes
-          nodes.forEach(n => {
+        Object.keys(groups).forEach(g => {
+          if (g === '__default') return;
+          const box = groups[g];
+          const pad = 16;
+          const x = box.minX - pad;
+          const y = box.minY - pad;
+          const w = (box.maxX - box.minX) + pad * 2;
+          const h = (box.maxY - box.minY) + pad * 2;
+          ctx.save();
+          ctx.fillStyle = 'rgba(30,64,175,0.04)';
+          ctx.strokeStyle = 'rgba(30,64,175,0.12)';
+          ctx.lineWidth = 1.2;
+          const r = 8;
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.arcTo(x + w, y, x + w, y + h, r);
+          ctx.arcTo(x + w, y + h, x, y + h, r);
+          ctx.arcTo(x, y + h, x, y, r);
+          ctx.arcTo(x, y, x + w, y, r);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(g, x + 8, y + 14);
+        });
+
+        // Draw nodes
+        nodes.forEach(n => {
             const sizeVal = (n.size || n.value || 1);
             const r = 6 + (sizeVal / 2);
             ctx.beginPath();

@@ -295,6 +295,8 @@ export class GraphBuilder {
         node.duplicates = rec.duplicates || 0;
         // choose color by maxSeverity
         node.color = colorFor(rec.maxSeverity);
+        // assign package group for boundary drawing
+        node.group = builder.getPackageGroup(node.id as any) || undefined;
         // increment metadata counts by severity seen on this file
         if (rec.maxSeverity === 'critical') criticalIssues += rec.count;
         else if (rec.maxSeverity === 'major') majorIssues += rec.count;
@@ -302,6 +304,7 @@ export class GraphBuilder {
         else if (rec.maxSeverity === 'info') infoIssues += rec.count;
       } else {
         node.color = colorFor(null);
+        node.group = builder.getPackageGroup(node.id as any) || undefined;
         node.duplicates = 0;
       }
     }
