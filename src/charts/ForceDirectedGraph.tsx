@@ -217,7 +217,7 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
   }, [enableDrag]);
 
   // Initialize simulation with manualLayout mode
-  const onTick = (nodesCopy: any[], linksCopy: any[], sim: any) => {
+  const onTick = (nodesCopy: any[], _linksCopy: any[], _sim: any) => {
     const bounds = packageBounds && Object.keys(packageBounds).length ? packageBounds : undefined;
     // fallback: if parent didn't provide packageBounds, compute locally from initialNodes
     let effectiveBounds = bounds;
@@ -232,7 +232,7 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
         });
         const children = Object.keys(counts).map((k) => ({ name: k, value: counts[k] }));
         if (children.length > 0) {
-          const root = d3.hierarchy({ children }).sum((d: any) => d.value as number);
+          const root = d3.hierarchy<any>({ children } as any).sum((d: any) => d.value as number);
           const pack = d3.pack().size([width, height]).padding(30);
           const packed = pack(root);
           const map: Record<string, { x: number; y: number; r: number }> = {};
