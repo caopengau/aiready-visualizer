@@ -41,8 +41,8 @@ export class GraphBuilder {
     if (!message || typeof message !== 'string') return [];
     const reAbs = /\/(?:[\w\-.]+\/)+[\w\-.]+\.(?:ts|tsx|js|jsx|py|java|go)/g;
     const reRel = /(?:\.\/|\.\.\/)(?:[\w\-.]+\/)+[\w\-.]+\.(?:ts|tsx|js|jsx|py|java|go)/g;
-    const abs = message.match(reAbs) || [];
-    const rel = message.match(reRel) || [];
+    const abs = (message.match(reAbs) || []) as string[];
+    const rel = (message.match(reRel) || []) as string[];
     return abs.concat(rel);
   }
 
@@ -62,16 +62,16 @@ export class GraphBuilder {
     if (!file) return;
     const id = path.resolve(this.rootDir, file);
     if (!this.nodesMap.has(id)) {
-      const node: FileNode = {
+      const node = {
         id,
         path: id,
         label: this.normalizeLabel(id),
         title,
         size: value || 1,
-      } as FileNode;
-      this.nodesMap.set(id, node);
+      } as any;
+      this.nodesMap.set(id, node as FileNode);
     } else {
-      const node = this.nodesMap.get(id)!;
+      const node = this.nodesMap.get(id)! as any;
       if (title && (!node.title || !node.title.includes(title))) {
         node.title = (node.title ? node.title + '\n' : '') + title;
       }
@@ -290,22 +290,23 @@ export class GraphBuilder {
     let infoIssues = 0;
 
     for (const node of nodes) {
-      const rec = fileIssues.get(node.id);
+      const n = node as any;
+      const rec = fileIssues.get(n.id);
       if (rec) {
-        node.duplicates = rec.duplicates || 0;
+        n.duplicates = rec.duplicates || 0;
         // choose color by maxSeverity
-        node.color = colorFor(rec.maxSeverity);
+        n.color = colorFor(rec.maxSeverity);
         // assign package group for boundary drawing
-        node.group = builder.getPackageGroup(node.id as any) || undefined;
+        n.group = builder.getPackageGroup(n.id as any) || undefined;
         // increment metadata counts by severity seen on this file
         if (rec.maxSeverity === 'critical') criticalIssues += rec.count;
         else if (rec.maxSeverity === 'major') majorIssues += rec.count;
         else if (rec.maxSeverity === 'minor') minorIssues += rec.count;
         else if (rec.maxSeverity === 'info') infoIssues += rec.count;
       } else {
-        node.color = colorFor(null);
-        node.group = builder.getPackageGroup(node.id as any) || undefined;
-        node.duplicates = 0;
+        n.color = colorFor(null);
+        n.group = builder.getPackageGroup(n.id as any) || undefined;
+        n.duplicates = 0;
       }
     }
 
