@@ -121,6 +121,31 @@ export class GraphBuilder {
   static buildFromReport(report: any, rootDir = process.cwd()): GraphData {
     const builder = new GraphBuilder(rootDir);
 
+    // Map to collect per-file issue aggregates
+    const fileIssues: Map<string, { count: number; maxSeverity: IssueSeverity | null; duplicates: number }> = new Map();
+
+    const rankSeverity = (s?: string | null): IssueSeverity | null => {
+      if (!s) return null;
+      const ss = String(s).toLowerCase();
+      if (ss.includes('critical')) return 'critical';
+      if (ss.includes('major')) return 'major';
+      if (ss.includes('minor')) return 'minor';
+      if (ss.includes('info')) return 'info';
+      return null;
+    };
+
+    const bumpIssue = (file: string, sev?: IssueSeverity | null) => {
+      if (!file) return;
+      const id = path.resolve(rootDir, file);
+      if (!fileIssues.has(id)) fileIssues.set(id, { count: 0, maxSeverity: null, duplicates: 0 });
+      const rec = fileIssues.get(id)!;
+      rec.count += 1;
+      if (sev) {
+        const order = { critical: 3, major: 2, minor: 1, info: 0 } as Record<IssueSeverity, number>;
+        if (!rec.maxSeverity || order[sev] > order[rec.maxSeverity]) rec.maxSeverity = sev;
+      }
+    };
+
     // Pre-scan for basenames
     const basenameMap = new Map<string, Set<string>>();
     (report.patterns || []).forEach((p: any) => {
@@ -133,6 +158,14 @@ export class GraphBuilder {
     (report.patterns || []).forEach((entry: any) => {
       const file = entry.fileName;
       builder.addNode(file, `Issues: ${(entry.issues || []).length}`, (entry.metrics && entry.metrics.tokenCost) || 5);
+
+      // record aggregate for this file
+      if ((entry.issues || []).length > 0) {
+        (entry.issues || []).forEach((issue: any) => {
+          const sev = rankSeverity(issue.severity || issue.severityLevel || null);
+          bumpIssue(file, sev);
+        });
+      }
 
       (entry.issues || []).forEach((issue: any) => {
         const message = issue.message || '';
@@ -172,12 +205,27 @@ export class GraphBuilder {
       builder.addNode(dup.file1, 'Similarity target', 5);
       builder.addNode(dup.file2, 'Similarity target', 5);
       builder.addEdge(dup.file1, dup.file2, 'similarity');
+      // count duplicates as issues (no explicit severity available)
+      const f1 = path.resolve(rootDir, dup.file1);
+      const f2 = path.resolve(rootDir, dup.file2);
+      if (!fileIssues.has(f1)) fileIssues.set(f1, { count: 0, maxSeverity: null, duplicates: 0 });
+      if (!fileIssues.has(f2)) fileIssues.set(f2, { count: 0, maxSeverity: null, duplicates: 0 });
+      fileIssues.get(f1)!.duplicates += 1;
+      fileIssues.get(f2)!.duplicates += 1;
     });
 
     // 3. Context: dependencies and related files
     (report.context || []).forEach((ctx: any) => {
       const file = ctx.file;
       builder.addNode(file, `Deps: ${ctx.dependencyCount || 0}`, 10);
+
+      // context-level issues
+      if (ctx.issues && Array.isArray(ctx.issues)) {
+        ctx.issues.forEach((issue: any) => {
+          const sev = rankSeverity(issue.severity || issue.severityLevel || null);
+          bumpIssue(file, sev);
+        });
+      }
 
       // Add related files: do not create visual edges for 'related' links to
       // avoid clutter. Instead, increase the related node's prominence so the
@@ -215,7 +263,67 @@ export class GraphBuilder {
       });
     });
 
-    return builder.build();
+    // Finalize nodes: assign colors and duplicate counts based on collected issue data
+    const nodes = Array.from((builder as any).nodesMap.values()) as FileNode[];
+    const edges = (builder as any).edges as DependencyEdge[];
+
+    // Color mapping by highest severity
+    const colorFor = (sev: IssueSeverity | null) => {
+      switch (sev) {
+        case 'critical':
+          return '#ff4d4f'; // red
+        case 'major':
+          return '#ff9900'; // orange
+        case 'minor':
+          return '#ffd666'; // yellow
+        case 'info':
+          return '#91d5ff'; // light blue
+        default:
+          return '#97c2fc'; // default blue
+      }
+    };
+
+    // Populate node-level visual props and metadata counters
+    let criticalIssues = 0;
+    let majorIssues = 0;
+    let minorIssues = 0;
+    let infoIssues = 0;
+
+    for (const node of nodes) {
+      const rec = fileIssues.get(node.id);
+      if (rec) {
+        node.duplicates = rec.duplicates || 0;
+        // choose color by maxSeverity
+        node.color = colorFor(rec.maxSeverity);
+        // increment metadata counts by severity seen on this file
+        if (rec.maxSeverity === 'critical') criticalIssues += rec.count;
+        else if (rec.maxSeverity === 'major') majorIssues += rec.count;
+        else if (rec.maxSeverity === 'minor') minorIssues += rec.count;
+        else if (rec.maxSeverity === 'info') infoIssues += rec.count;
+      } else {
+        node.color = colorFor(null);
+        node.duplicates = 0;
+      }
+    }
+
+    const graph: GraphData = {
+      nodes,
+      edges,
+      clusters: [],
+      issues: [],
+      metadata: {
+        timestamp: new Date().toISOString(),
+        totalFiles: nodes.length,
+        totalDependencies: edges.length,
+        analysisTypes: [],
+        criticalIssues,
+        majorIssues,
+        minorIssues,
+        infoIssues,
+      },
+    };
+
+    return graph;
   }
 }
 

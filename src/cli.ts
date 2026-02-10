@@ -109,19 +109,20 @@ function generateHTML(graph: GraphData): string {
           ctx.stroke();
         });
 
-        // Draw nodes
-        nodes.forEach(n => {
-          const r = 6 + ((n.size || 1) / 2);
-          ctx.beginPath();
-          ctx.fillStyle = '#60a5fa';
-          ctx.arc(n.x, n.y, r, 0, Math.PI*2);
-          ctx.fill();
+          // Draw nodes
+          nodes.forEach(n => {
+            const sizeVal = (n.size || n.value || 1);
+            const r = 6 + (sizeVal / 2);
+            ctx.beginPath();
+            ctx.fillStyle = n.color || '#60a5fa';
+            ctx.arc(n.x, n.y, r, 0, Math.PI*2);
+            ctx.fill();
 
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = '11px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.fillText(n.label || n.id.split('/').slice(-1)[0], n.x, n.y + r + 12);
-        });
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(n.label || n.id.split('/').slice(-1)[0], n.x, n.y + r + 12);
+          });
       }
 
       draw();

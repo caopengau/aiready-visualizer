@@ -37,6 +37,29 @@ function buildGraph(report) {
   const nodesMap = new Map();
   const edges = [];
   const edgesSet = new Set();
+  const fileIssues = new Map(); // id -> { count, maxSeverity, duplicates }
+
+  function rankSeverity(s) {
+    if (!s) return null;
+    const ss = String(s).toLowerCase();
+    if (ss.includes('critical')) return 'critical';
+    if (ss.includes('major')) return 'major';
+    if (ss.includes('minor')) return 'minor';
+    if (ss.includes('info')) return 'info';
+    return null;
+  }
+
+  function bumpIssue(file, sev) {
+    if (!file) return;
+    const id = path.resolve(process.cwd(), file);
+    if (!fileIssues.has(id)) fileIssues.set(id, { count: 0, maxSeverity: null, duplicates: 0 });
+    const rec = fileIssues.get(id);
+    rec.count += 1;
+    if (sev) {
+      const order = { critical: 3, major: 2, minor: 1, info: 0 };
+      if (!rec.maxSeverity || order[sev] > order[rec.maxSeverity]) rec.maxSeverity = sev;
+    }
+  }
 
   function getPackageGroup(fp) {
     if (!fp) return null;
@@ -92,6 +115,9 @@ function buildGraph(report) {
 
     (entry.issues || []).forEach((issue) => {
       const message = issue.message || '';
+      // record issue severity/count for coloring
+      const sev = rankSeverity(issue.severity || issue.severityLevel || null);
+      bumpIssue(file, sev);
       
       // Path extraction
       const refs = extractReferencedPaths(message);
@@ -128,6 +154,12 @@ function buildGraph(report) {
     addNode(dup.file1, 'Similarity target', 5);
     addNode(dup.file2, 'Similarity target', 5);
     addEdge(dup.file1, dup.file2, 'similarity');
+    const f1 = path.resolve(process.cwd(), dup.file1);
+    const f2 = path.resolve(process.cwd(), dup.file2);
+    if (!fileIssues.has(f1)) fileIssues.set(f1, { count: 0, maxSeverity: null, duplicates: 0 });
+    if (!fileIssues.has(f2)) fileIssues.set(f2, { count: 0, maxSeverity: null, duplicates: 0 });
+    fileIssues.get(f1).duplicates += 1;
+    fileIssues.get(f2).duplicates += 1;
   });
 
   // 3. Process context (dependencies and related files)
@@ -146,6 +178,14 @@ function buildGraph(report) {
       const relNode = nodesMap.get(resolvedRel);
       if (relNode) relNode.value = (relNode.value || 1) + 2;
     });
+
+    // context-level issues
+    if (ctx.issues && Array.isArray(ctx.issues)) {
+      ctx.issues.forEach((issue) => {
+        const sev = rankSeverity(issue.severity || issue.severityLevel || null);
+        bumpIssue(file, sev);
+      });
+    }
 
     // Link dependencies if they resolve to local files
     const fileDir = path.dirname(file);
@@ -170,10 +210,24 @@ function buildGraph(report) {
     });
   });
 
-  return {
-    nodes: Array.from(nodesMap.values()),
-    edges
+  // finalize node colors based on collected fileIssues
+  const colorFor = (sev) => {
+    switch (sev) {
+      case 'critical': return '#ff4d4f';
+      case 'major': return '#ff9900';
+      case 'minor': return '#ffd666';
+      case 'info': return '#91d5ff';
+      default: return '#97c2fc';
+    }
   };
+
+  const nodes = Array.from(nodesMap.values()).map(n => {
+    const id = path.resolve(process.cwd(), n.id || n.label);
+    const rec = fileIssues.get(id);
+    return Object.assign({}, n, { color: rec ? colorFor(rec.maxSeverity) : colorFor(null), duplicates: rec ? rec.duplicates : 0 });
+  });
+
+  return { nodes, edges };
 }
 
 function renderHtml(graph) {
@@ -235,7 +289,7 @@ function renderHtml(graph) {
 
     <script>
       const data = ${JSON.stringify(graph)};
-      const nodes = new vis.DataSet(data.nodes.map(n => ({ id: n.id, label: n.label, title: n.title, value: n.value })));
+      const nodes = new vis.DataSet(data.nodes.map(n => ({ id: n.id, label: n.label, title: n.title, value: n.value || n.size, color: n.color })));
 
       // Build edge items with ids and meta type
       const edgeItems = data.edges.map((e, i) => {
