@@ -117,7 +117,7 @@ function generateHTML(graph: GraphData): string {
           ctx.lineTo(t.x, t.y);
           ctx.stroke();
         });
-        // Draw package boundaries (group boxes)
+        // Compute package/group bounding boxes
         const groups = {};
         nodes.forEach(n => {
           const g = n.group || '__default';
@@ -126,6 +126,36 @@ function generateHTML(graph: GraphData): string {
           groups[g].minY = Math.min(groups[g].minY, n.y);
           groups[g].maxX = Math.max(groups[g].maxX, n.x);
           groups[g].maxY = Math.max(groups[g].maxY, n.y);
+        });
+
+        // Compute inter-package relations (counts of edges across groups)
+        const groupRelations = {};
+        graphData.edges.forEach(edge => {
+          const sNode = nodes.find(n => n.id === edge.source);
+          const tNode = nodes.find(n => n.id === edge.target);
+          if (!sNode || !tNode) return;
+          const g1 = sNode.group || '__default';
+          const g2 = tNode.group || '__default';
+          if (g1 === g2) return;
+          const key = g1 < g2 ? `${g1}::${g2}` : `${g2}::${g1}`;
+          groupRelations[key] = (groupRelations[key] || 0) + 1;
+        });
+
+        // Draw package-to-package relation lines (under the group boxes)
+        Object.keys(groupRelations).forEach(k => {
+          const count = groupRelations[k];
+          const [ga, gb] = k.split('::');
+          if (!groups[ga] || !groups[gb]) return;
+          const ax = (groups[ga].minX + groups[ga].maxX) / 2;
+          const ay = (groups[ga].minY + groups[ga].maxY) / 2;
+          const bx = (groups[gb].minX + groups[gb].maxX) / 2;
+          const by = (groups[gb].minY + groups[gb].maxY) / 2;
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+          ctx.lineWidth = Math.min(6, 0.6 + Math.sqrt(count));
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
         });
 
         Object.keys(groups).forEach(g => {
