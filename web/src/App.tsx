@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import * as d3 from 'd3';
 import { ForceDirectedGraph } from '@aiready/components';
 import type { GraphNode, GraphLink, ForceDirectedGraphHandle } from '@aiready/components/charts/ForceDirectedGraph';
 
@@ -40,6 +41,52 @@ export default function App() {
   const [manualLayoutMode, setManualLayoutMode] = useState(false);
   const [pinnedNodeIds, setPinnedNodeIds] = useState<Set<string>>(new Set());
   const graphRef = useRef<ForceDirectedGraphHandle>(null);
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
+  const paramGroupDirs = params.get('groupDirs');
+  const paramCwd = params.get('cwd');
+  const initialGroupDirs = paramGroupDirs
+    ? paramGroupDirs.split(',').map((s) => s.trim()).filter(Boolean)
+    : paramCwd
+    ? [paramCwd]
+    : [];
+  const [groupingDirs, setGroupingDirs] = useState<string[]>(initialGroupDirs);
+  const [groupingInput, setGroupingInput] = useState<string>(initialGroupDirs.join(','));
+  const [visibleSeverities, setVisibleSeverities] = useState<Record<string, boolean>>({
+    critical: true,
+    major: true,
+    minor: true,
+    info: true,
+  });
+  const [visibleEdgeTypes, setVisibleEdgeTypes] = useState<Record<string, boolean>>({
+    dependency: true,
+    similarity: true,
+    reference: true,
+    related: true,
+    package: true,
+  });
+
+  const canvasWidth = Math.max(400, window.innerWidth - 360);
+  const canvasHeight = Math.max(300, window.innerHeight - 120);
+
+  const filteredNodes = useMemo(() => {
+    return nodes.filter((n) => {
+      if (n.kind === 'package') return true;
+      const sev = (n as NodeMeta).severity || 'info';
+      return Boolean(visibleSeverities[sev]);
+    });
+  }, [nodes, visibleSeverities]);
+
+  const filteredLinks = useMemo(() => {
+    const visibleIds = new Set(filteredNodes.map((n) => n.id));
+    return links.filter((l) => {
+      const t = l.type || 'reference';
+      if (!visibleEdgeTypes[t]) return false;
+      const src = typeof l.source === 'string' ? l.source : (l.source as any)?.id;
+      const tgt = typeof l.target === 'string' ? l.target : (l.target as any)?.id;
+      if (!src || !tgt) return false;
+      return visibleIds.has(src) && visibleIds.has(tgt);
+    });
+  }, [links, visibleEdgeTypes]);
 
   const styledLinks = useMemo(() => {
     const styles: Record<NonNullable<LinkMeta['type']>, { color: string; width: number }> = {
@@ -49,11 +96,41 @@ export default function App() {
       related: { color: '#cbd5f5', width: 0.8 },
       package: { color: '#94a3b8', width: 0.9 },
     };
-    return links.map((link) => {
+    return filteredLinks.map((link) => {
       const type = link.type || 'reference';
-      return { ...link, color: styles[type].color, width: styles[type].width };
+      // distance tuning: make package boundary links short (pack around package nodes)
+      // and increase file-file link distances so nodes inside packages spread out
+      const distance = type === 'package' ? 60 : 200;
+      return { ...link, color: styles[type].color, width: styles[type].width, distance };
     });
-  }, [links]);
+  }, [filteredLinks]);
+
+  // Compute package pack layout (circle per package) based on visible file counts
+  const packageBounds = useMemo(() => {
+    const fileNodes = filteredNodes.filter((n) => n.kind === 'file');
+    const counts: Record<string, number> = {};
+    fileNodes.forEach((n) => {
+      const g = (n as any).packageGroup || 'root';
+      counts[g] = (counts[g] || 0) + 1;
+    });
+
+    const children = Object.keys(counts).map((k) => ({ name: k, value: counts[k] }));
+    if (children.length === 0) return {} as Record<string, { x: number; y: number; r: number }>;
+
+    const root = d3.hierarchy({ children }).sum((d: any) => d.value as number);
+    const pack = d3.pack().size([canvasWidth, canvasHeight]).padding(30);
+    const packed = pack(root);
+    const map: Record<string, { x: number; y: number; r: number }> = {};
+    if (packed.children) {
+      packed.children.forEach((c: any) => {
+        const name = c.data.name;
+        // package node id uses `pkg:${group}` in graph
+        // shrink reported radius slightly to create an inner margin
+        map[`pkg:${name}`] = { x: c.x, y: c.y, r: c.r * 0.95 };
+      });
+    }
+    return map;
+  }, [filteredNodes, canvasWidth, canvasHeight]);
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +149,16 @@ export default function App() {
 
     async function loadReport() {
       try {
+        // load aiready.json config if present to allow spoke-level customization
+        let cfg: any = null;
+        try {
+          const cfgRes = await fetch('/aiready.json');
+          if (cfgRes && cfgRes.ok) cfg = await cfgRes.json();
+        } catch (e) {
+          cfg = null;
+        }
+        const configGrouping = cfg?.visualizer?.groupingDirs || cfg?.groupDirs || null;
+        const groupingDirsLocal = Array.isArray(configGrouping) && configGrouping.length > 0 ? configGrouping : groupingDirs;
         const params = new URLSearchParams(window.location.search);
         const qReport = params.get('report');
 
@@ -112,6 +199,18 @@ export default function App() {
 
         const getPackageGroup = (filePath: string) => {
           const parts = filePath.split('/').filter(Boolean);
+          // honor configured groupingDirs (first match wins)
+          if (groupingDirsLocal && groupingDirsLocal.length > 0) {
+            for (const gd of groupingDirsLocal) {
+              if (gd === '.' || gd === '') {
+                if (parts.length > 0) return parts[0];
+                continue;
+              }
+              const idx = parts.indexOf(gd);
+              if (idx >= 0 && parts[idx + 1]) return `${gd}/${parts[idx + 1]}`;
+            }
+          }
+          // fallback heuristics
           const pkgIdx = parts.indexOf('packages');
           if (pkgIdx >= 0 && parts[pkgIdx + 1]) return `packages/${parts[pkgIdx + 1]}`;
           const landingIdx = parts.indexOf('landing');
@@ -298,13 +397,25 @@ export default function App() {
           minorIssues: issueTotals.minor,
           infoIssues: issueTotals.info,
         });
+        // If groupingDirs not explicitly set by user or config, derive sensible defaults
+        if ((!groupingDirs || groupingDirs.length === 0) && !configGrouping) {
+          const foundPackages = Array.from(fileMap.keys()).some((p) => p.includes('/packages/'));
+          const foundLanding = Array.from(fileMap.keys()).some((p) => p.includes('/landing/')) || Array.from(fileMap.keys()).some((p) => p.startsWith('landing/'));
+          const defaults: string[] = [];
+          if (foundLanding) defaults.push('landing');
+          if (foundPackages) defaults.push('packages');
+          if (defaults.length > 0) {
+            setGroupingDirs(defaults);
+            setGroupingInput(defaults.join(','));
+          }
+        }
       } catch (e) {
         // ignore and keep sample data
       }
     }
     loadReport();
     return () => { mounted = false; };
-  }, []);
+  }, [groupingDirs]);
 
   // Graph control handlers
   const handleDragToggle = (enabled: boolean) => {
@@ -353,7 +464,25 @@ export default function App() {
             <h1 style={titleStyle}>AIReady Visualizer</h1>
             <p style={subStyle}>Interactive Dependency Graph</p>
           </div>
-          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input
+              value={groupingInput}
+              onChange={(e) => setGroupingInput(e.target.value)}
+              placeholder="group dirs (comma-separated) e.g. packages,landing"
+              style={{ padding: '6px 8px', borderRadius: 6, border: '1px solid #334155', background: '#0f172a', color: '#fff', fontSize: 12 }}
+              title="Comma-separated directory names to group by (first match wins). Use '.' for root"
+            />
+            <button
+              onClick={() => {
+                const list = groupingInput.split(',').map((s) => s.trim()).filter(Boolean);
+                setGroupingDirs(list);
+              }}
+              style={{ padding: '6px 10px', borderRadius: 6, background: '#0ea5e9', color: '#042433', border: 'none', cursor: 'pointer', fontSize: 12 }}
+              title="Apply grouping dirs"
+            >
+              Group
+            </button>
+          </div>
           <div style={headerControlsStyle}>
             <button
               onClick={() => handleDragToggle(!dragEnabled)}
@@ -488,11 +617,12 @@ export default function App() {
             <div className="graph-canvas">
             <ForceDirectedGraph
               ref={graphRef}
-              nodes={nodes}
+              nodes={filteredNodes}
               links={styledLinks}
-              width={Math.max(400, window.innerWidth - 360)}
-              height={Math.max(300, window.innerHeight - 120)}
-              simulationOptions={{ linkDistance: 90, chargeStrength: -260, collisionRadius: 14, centerStrength: 0.08 }}
+              width={canvasWidth}
+              height={canvasHeight}
+              packageBounds={packageBounds}
+              simulationOptions={{ linkDistance: 180, chargeStrength: -800, collisionRadius: 56, centerStrength: 0.08 }}
               enableDrag={dragEnabled}
               onNodeClick={(node) => setSelectedNode(node)}
               onNodeHover={(node) => setHoveredNode(node)}
@@ -586,18 +716,72 @@ export default function App() {
               <h3 style={{ marginTop: 16, marginBottom: 8 }}>Legend</h3>
               <div className="legend-section">
                 <div className="legend-title">Severity (Node Color)</div>
-                <div className="legend-row"><span className="legend-swatch" style={{ background: '#ef4444' }} />Critical</div>
-                <div className="legend-row"><span className="legend-swatch" style={{ background: '#f97316' }} />Major</div>
-                <div className="legend-row"><span className="legend-swatch" style={{ background: '#f59e0b' }} />Minor</div>
-                <div className="legend-row"><span className="legend-swatch" style={{ background: '#60a5fa' }} />Info</div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleSeverities((s) => ({ ...s, critical: !s.critical }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.critical ? 1 : 0.35 }}
+                >
+                  <span className="legend-swatch" style={{ background: '#ef4444' }} />Critical
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleSeverities((s) => ({ ...s, major: !s.major }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.major ? 1 : 0.35 }}
+                >
+                  <span className="legend-swatch" style={{ background: '#f97316' }} />Major
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleSeverities((s) => ({ ...s, minor: !s.minor }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.minor ? 1 : 0.35 }}
+                >
+                  <span className="legend-swatch" style={{ background: '#f59e0b' }} />Minor
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleSeverities((s) => ({ ...s, info: !s.info }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.info ? 1 : 0.35 }}
+                >
+                  <span className="legend-swatch" style={{ background: '#60a5fa' }} />Info
+                </div>
               </div>
               <div className="legend-section">
                 <div className="legend-title">Edges</div>
-                <div className="legend-row"><span className="legend-line" style={{ background: '#2563eb' }} />Dependency</div>
-                <div className="legend-row"><span className="legend-line" style={{ background: '#a855f7' }} />Similarity</div>
-                <div className="legend-row"><span className="legend-line" style={{ background: '#22c55e' }} />Reference</div>
-                <div className="legend-row"><span className="legend-line" style={{ background: '#94a3b8' }} />Package Boundary</div>
-                <div className="legend-row"><span className="legend-line" style={{ background: '#cbd5f5' }} />Related</div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, dependency: !s.dependency }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.dependency ? 1 : 0.35 }}
+                >
+                  <span className="legend-line" style={{ background: '#2563eb' }} />Dependency
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, similarity: !s.similarity }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.similarity ? 1 : 0.35 }}
+                >
+                  <span className="legend-line" style={{ background: '#a855f7' }} />Similarity
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, reference: !s.reference }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.reference ? 1 : 0.35 }}
+                >
+                  <span className="legend-line" style={{ background: '#22c55e' }} />Reference
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, package: !s.package }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.package ? 1 : 0.35 }}
+                >
+                  <span className="legend-line" style={{ background: '#94a3b8' }} />Package Boundary
+                </div>
+                <div
+                  role="button"
+                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, related: !s.related }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.related ? 1 : 0.35 }}
+                >
+                  <span className="legend-line" style={{ background: '#cbd5f5' }} />Related
+                </div>
               </div>
               <div className="legend-section">
                 <div className="legend-title">Node Size</div>
