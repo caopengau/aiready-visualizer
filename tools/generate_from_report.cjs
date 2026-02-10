@@ -254,34 +254,60 @@ function renderHtml(graph) {
         <h4 style="margin:8px 0">Legend</h4>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#222">
           <div>
+            <span style="display:inline-block;width:12px;height:12px;background:#ff4d4f;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
+            <strong>Critical</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Files with critical issues (highest severity). These are high-priority hotspots that may block AI-assisted work or cause incorrect outputs.</div>
+          </div>
+
+          <div>
+            <span style="display:inline-block;width:12px;height:12px;background:#ff9900;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
+            <strong>Major</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Files with major issues requiring attention; likely to affect model performance or developer productivity.</div>
+          </div>
+
+          <div>
+            <span style="display:inline-block;width:12px;height:12px;background:#ffd666;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
+            <strong>Minor</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Files with minor issues or informational findings—worth fixing but lower priority.</div>
+          </div>
+
+          <div>
+            <span style="display:inline-block;width:12px;height:12px;background:#91d5ff;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
+            <strong>Info</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Informational notes or low-severity findings.</div>
+          </div>
+
+          <div>
+            <span style="display:inline-block;width:12px;height:12px;background:#97c2fc;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
+            <strong>Default</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Files with no recorded issues (default color).</div>
+          </div>
+
+          <div>
             <span style="display:inline-block;width:12px;height:12px;background:#fb7e81;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Similarity</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Files flagged as semantically similar or potential duplicates (from <code>duplicates</code> and fuzzy matches). High density of similarity edges suggests duplicate logic or copy/paste that may be refactorable.</div>
-            <div style="margin-left:20px;color:#666;font-size:11px;font-style:italic">Suggested action: review grouped files for consolidation or extract common utilities.</div>
+            <strong>Similarity (edge)</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Semantic similarity or duplicate links between files.</div>
           </div>
 
           <div>
             <span style="display:inline-block;width:12px;height:12px;background:#84c1ff;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Dependency</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Static/local import relationships resolved from the <code>context.dependencyList</code>. These are actual code imports (relative paths) that create coupling between modules.</div>
-            <div style="margin-left:20px;color:#666;font-size:11px;font-style:italic">Suggested action: inspect heavy dependency hubs for possible boundary or layering issues.</div>
+            <strong>Dependency (edge)</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Static import relationships (actual code imports).</div>
           </div>
-
-          <!-- Relatedness is represented by node proximity and size rather than explicit edges -->
 
           <div>
             <span style="display:inline-block;width:12px;height:12px;background:#ffa500;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Reference</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Explicit file paths mentioned inside issue messages. These indicate where human or model-generated feedback points to another file.</div>
-            <div style="margin-left:20px;color:#666;font-size:11px;font-style:italic">Suggested action: follow references to confirm root cause and linked locations.</div>
+            <strong>Reference (edge)</strong>
+            <div style="margin-left:20px;color:#555;font-size:12px">Explicit references discovered inside issue messages.</div>
           </div>
         </div>
 
         <div style="margin-top:10px;font-size:12px;color:#444">
-          <div><strong>Node size</strong>: larger nodes indicate higher importance (tokenCost, issue count, or dependency weight).</div>
-          <div style="margin-top:6px"><strong>Short edges</strong>: similarity links are drawn shorter to pull related files closer; long edges indicate weaker contextual links.</div>
-          <div style="margin-top:6px;color:#666;font-size:11px">Relatedness: proximity between nodes (and slightly larger node size) indicates contextual relation; we do not draw explicit 'related' edges to avoid clutter.</div>
-          <div style="margin-top:6px;color:#666;font-size:11px">Interaction: click a node to view issues/details; use this legend to interpret clusters and hotspots.</div>
+          <div><strong>Node color</strong>: shows the highest-severity issue present on the file (Critical → Major → Minor → Info → Default).</div>
+          <div style="margin-top:6px"><strong>Node size</strong>: larger nodes indicate higher importance (token cost, number of issues, or dependency weight).</div>
+          <div style="margin-top:6px"><strong>Node distance / proximity</strong>: spatial closeness reflects contextual relatedness — similar or related files will be pulled closer during layout; we do not draw explicit 'related' edges to avoid clutter.</div>
+          <div style="margin-top:6px"><strong>Edge color & length</strong>: edge color shows relationship type (similarity/dependency/reference). Similarity edges are shorter to pull nodes together; dependency/reference edges are longer to show coupling.</div>
+          <div style="margin-top:6px;color:#666;font-size:11px">Interaction: click a node to view details; use the color and size cues to prioritize what to inspect first.</div>
         </div>
       </div>
       <div id="details" style="padding:12px">Click a node to see details</div>

@@ -61,7 +61,16 @@ function generateHTML(graph: GraphData): string {
         <h2>AIReady Visualization</h2>
         <div class="stat"><strong>Files:</strong> <span id="stat-files"></span></div>
         <div class="stat"><strong>Dependencies:</strong> <span id="stat-deps"></span></div>
-        <div class="stat"><strong>Note:</strong> Relatedness is represented by node proximity and size; related edges are not drawn to reduce clutter.</div>
+        <div class="stat"><strong>Legend</strong></div>
+        <div style="font-size:13px;line-height:1.3;color:#cbd5e1;margin-top:8px">
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ff4d4f;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Critical</strong>: highest severity issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ff9900;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Major</strong>: important issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ffd666;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Minor</strong>: low priority issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#91d5ff;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Info</strong>: informational notes.</div>
+          <div style="margin-top:10px;color:#94a3b8"><strong>Node size</strong>: larger = higher token cost, more issues or dependency weight.</div>
+          <div style="margin-top:6px;color:#94a3b8"><strong>Proximity</strong>: nodes that are spatially close are more contextually related; relatedness is represented by distance and size rather than explicit edges.</div>
+          <div style="margin-top:6px;color:#94a3b8"><strong>Edge colors</strong>: <span style="color:#fb7e81">Similarity</span>, <span style="color:#84c1ff">Dependency</span>, <span style="color:#ffa500">Reference</span>, default <span style="color:#334155">Other</span>.</div>
+        </div>
       </div>
     </div>
 
