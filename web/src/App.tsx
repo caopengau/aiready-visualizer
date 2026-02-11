@@ -15,6 +15,7 @@ type NodeMeta = GraphNode & {
   dependencyCount?: number;
   filePath?: string;
   filesInPackage?: number;
+  issues?: Array<{ message: string; severity?: string; location?: any }>;
 };
 
 type LinkMeta = GraphLink & { type?: 'dependency' | 'similarity' | 'reference' | 'related' | 'package' };
@@ -254,6 +255,7 @@ export default function App() {
               tokenCost: 0,
               duplicates: 0,
               dependencyCount: 0,
+              issues: [],
             };
             fileMap.set(id, node);
           }
@@ -298,6 +300,12 @@ export default function App() {
           node.size = Math.round(10 + Math.min(42, Math.log(Math.max(1, tokenCost)) * 6 + issues.length * 2));
 
           issueTotals[top] += issues.length;
+          // attach detailed issues to node for sidebar display
+          node.issues = issues.map((it: any) => ({
+            message: String(it.message || it.msg || ''),
+            severity: String(it.severity || 'info'),
+            location: it.location || it.range || null,
+          }));
         }
 
         const builtLinks: LinkMeta[] = [];
@@ -641,6 +649,15 @@ export default function App() {
 
             {selectedNode ? (
               <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button
+                    onClick={() => setSelectedNode(null)}
+                    style={{ background: 'transparent', border: 'none', color: '#0ea5e9', cursor: 'pointer', padding: 0 }}
+                  >
+                    ← Back
+                  </button>
+                  <div style={{ color: '#6b7280', fontSize: 12 }}>{selectedNode.kind === 'file' ? 'File Details' : 'Package Details'}</div>
+                </div>
                 <div>
                   <h3 style={{ margin: '6px 0 4px' }}>Selected Node</h3>
                   <p style={{ margin: 0, color: '#4b5563' }}>{selectedNode.label}</p>
@@ -691,6 +708,23 @@ export default function App() {
                     </div>
                   </div>
                 )}
+                {/* Issues details */}
+                {selectedNode.kind === 'file' && selectedNode.issues && selectedNode.issues.length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <h3 style={{ margin: '6px 0 4px' }}>Issues</h3>
+                    <div style={{ display: 'grid', gap: 8 }}>
+                      {selectedNode.issues.map((it, idx) => (
+                        <div key={idx} style={{ border: '1px solid #eef2ff', padding: 8, borderRadius: 6, background: '#fff' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontWeight: 700, color: '#111827' }}>{(it.severity || 'info').toUpperCase()}</div>
+                            {it.location && <div style={{ fontSize: 12, color: '#6b7280' }}>{JSON.stringify(it.location)}</div>}
+                          </div>
+                          <div style={{ marginTop: 6, color: '#374151', fontSize: 13 }}>{it.message}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {selectedNode.kind === 'package' && (
                   <div style={{ marginTop: 12 }}>
                     <h3 style={{ margin: '6px 0 4px' }}>Package Scope</h3>
@@ -712,7 +746,9 @@ export default function App() {
               <p style={{ color: '#6b7280' }}>Click on a node to see details</p>
             )}
 
-            <div className="legend">
+            {/* Only show legend and stats when not viewing a selected node */}
+            {!selectedNode && (
+              <div className="legend">
               <h3 style={{ marginTop: 16, marginBottom: 8 }}>Legend</h3>
               <div className="legend-section">
                 <div className="legend-title">Severity (Node Color)</div>
@@ -789,7 +825,8 @@ export default function App() {
               </div>
             </div>
 
-            <div className="stats">
+            {!selectedNode && (
+              <div className="stats">
               <h3 style={{ marginTop: 16, marginBottom: 8 }}>Graph Stats</h3>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <div style={{ color: '#6b7280' }}>Nodes:</div>
@@ -824,7 +861,8 @@ export default function App() {
                   </div>
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </div>
         </aside>
       </div>
