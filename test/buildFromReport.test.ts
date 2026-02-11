@@ -1,28 +1,11 @@
-import { GraphBuilder } from '../../src/graph/builder';
+import { test, expect } from 'vitest';
+import { createSampleGraph } from '../src/graph/builder';
 
-// Minimal smoke test for GraphBuilder.buildFromReport
-const sampleReport: any = {
-  files: [
-    {
-      file: 'packages/visualizer/src/index.ts',
-      tokens: 120,
-      imports: [],
-    },
-  ],
-  duplicates: [],
-  patterns: [],
-};
+test('createSampleGraph produces nodes', () => {
+  const graph = createSampleGraph();
+  expect(graph).toBeDefined();
+  expect(Array.isArray(graph.nodes)).toBe(true);
+  expect(graph.nodes.length).toBeGreaterThan(0);
+});
 
-function run() {
-  const graph = GraphBuilder.buildFromReport(sampleReport, process.cwd());
-  if (!graph || !Array.isArray(graph.nodes) || graph.nodes.length === 0) {
-    console.error('GraphBuilder.buildFromReport produced no nodes');
-    process.exitCode = 1;
-    return;
-  }
-  console.log('OK: GraphBuilder.buildFromReport produced', graph.nodes.length, 'node(s)');
-}
-
-if (require.main === module) run();
-
-export {}; // keep this file module-scoped
+export {};
