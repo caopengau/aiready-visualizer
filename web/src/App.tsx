@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import * as d3 from 'd3';
 import { ForceDirectedGraph } from '@aiready/components';
-import type { GraphNode, GraphLink, ForceDirectedGraphHandle } from '@aiready/components/charts/ForceDirectedGraph';
+import type { GraphNode, GraphLink, ForceDirectedGraphHandle } from '@aiready/components';
+// types imported from package root above
 
 type NodeKind = 'file' | 'package';
 
@@ -66,8 +67,23 @@ export default function App() {
     package: true,
   });
 
-  const canvasWidth = Math.max(400, window.innerWidth - 360);
-  const canvasHeight = Math.max(300, window.innerHeight - 120);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  
+  useEffect(() => {
+    const updateDimensions = () => {
+      setDimensions({
+        width: Math.max(400, window.innerWidth - 360),
+        height: Math.max(300, window.innerHeight - 120)
+      });
+    };
+    
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
+  
+  const canvasWidth = dimensions.width;
+  const canvasHeight = dimensions.height;
 
   const filteredNodes = useMemo(() => {
     return nodes.filter((n) => {
@@ -89,45 +105,75 @@ export default function App() {
     });
   }, [links, visibleEdgeTypes]);
 
+  const LINK_STYLES: Record<NonNullable<LinkMeta['type']>, { color: string; width: number; distance: number }> = {
+    dependency: { color: '#2563eb', width: 1.4, distance: 160 },
+    similarity: { color: '#a855f7', width: 1.2, distance: 180 },
+    reference: { color: '#22c55e', width: 1, distance: 200 },
+    related: { color: '#cbd5f5', width: 0.8, distance: 220 },
+    package: { color: '#94a3b8', width: 0.9, distance: 60 },
+  };
+
+  const SEVERITY_COLORS: Record<string, string> = {
+    critical: '#ef4444',
+    major: '#f97316',
+    minor: '#f59e0b',
+    info: '#60a5fa',
+  };
+
   const styledLinks = useMemo(() => {
-    const styles: Record<NonNullable<LinkMeta['type']>, { color: string; width: number }> = {
-      dependency: { color: '#2563eb', width: 1.4 },
-      similarity: { color: '#a855f7', width: 1.2 },
-      reference: { color: '#22c55e', width: 1 },
-      related: { color: '#cbd5f5', width: 0.8 },
-      package: { color: '#94a3b8', width: 0.9 },
-    };
     return filteredLinks.map((link) => {
-      const type = link.type || 'reference';
-      // distance tuning: make package boundary links short (pack around package nodes)
-      // and increase file-file link distances so nodes inside packages spread out
-      const distance = type === 'package' ? 60 : 200;
-      return { ...link, color: styles[type].color, width: styles[type].width, distance };
+      const type = (link.type || 'reference') as NonNullable<LinkMeta['type']>;
+      const style = LINK_STYLES[type] || LINK_STYLES.reference;
+      return { ...link, color: style.color, width: style.width, distance: style.distance };
     });
   }, [filteredLinks]);
 
-  // Compute package pack layout (circle per package) based on visible file counts
+  // Compute package pack layout (circle per package) based on D3 pack component pattern
   const packageBounds = useMemo(() => {
     const fileNodes = filteredNodes.filter((n) => n.kind === 'file');
-    const counts: Record<string, number> = {};
+    if (fileNodes.length === 0) return {} as Record<string, { x: number; y: number; r: number }>;
+
+    // Group nodes by package and compute total "weight" for each package
+    // Use a combination of token cost and issue count for better size distribution
+    const packageData: Record<string, { name: string; value: number; nodes: NodeMeta[] }> = {};
+    
     fileNodes.forEach((n) => {
       const g = (n as any).packageGroup || 'root';
-      counts[g] = (counts[g] || 0) + 1;
+      if (!packageData[g]) {
+        packageData[g] = { name: g, value: 0, nodes: [] };
+      }
+      packageData[g].nodes.push(n);
+      // Compute value based on token cost (if available) or default to 1
+      const tokenCost = n.tokenCost || 0;
+      const issueCount = n.issueCount || 0;
+      // Weight: token cost + 10 per issue (issues add complexity)
+      packageData[g].value += Math.max(1, tokenCost + (issueCount * 10));
     });
 
-    const children = Object.keys(counts).map((k) => ({ name: k, value: counts[k] }));
-    if (children.length === 0) return {} as Record<string, { x: number; y: number; r: number }>;
+    const children = Object.values(packageData).map((pkg) => ({
+      name: pkg.name,
+      value: pkg.value
+    }));
 
-    const root = d3.hierarchy({ children }).sum((d: any) => d.value as number);
-    const pack = d3.pack().size([canvasWidth, canvasHeight]).padding(30);
+    // Create hierarchy following D3 pack component pattern
+    const root = d3.hierarchy({ children })
+      .sum((d: any) => d.value)
+      .sort((a: any, b: any) => b.value - a.value);
+
+    // Create pack layout with appropriate padding
+    const pack = d3.pack()
+      .size([canvasWidth, canvasHeight])
+      .padding(20); // Reduced padding for tighter packing
+
     const packed = pack(root);
+    
     const map: Record<string, { x: number; y: number; r: number }> = {};
     if (packed.children) {
       packed.children.forEach((c: any) => {
         const name = c.data.name;
         // package node id uses `pkg:${group}` in graph
-        // shrink reported radius slightly to create an inner margin
-        map[`pkg:${name}`] = { x: c.x, y: c.y, r: c.r * 0.95 };
+        // Use 90% of radius to create inner margin for nodes
+        map[`pkg:${name}`] = { x: c.x, y: c.y, r: c.r * 0.9 };
       });
     }
     return map;
@@ -405,6 +451,13 @@ export default function App() {
           minorIssues: issueTotals.minor,
           infoIssues: issueTotals.info,
         });
+        
+        // Restart simulation after nodes are loaded
+        setTimeout(() => {
+          if (graphRef.current) {
+            graphRef.current.resetLayout();
+          }
+        }, 100);
         // If groupingDirs not explicitly set by user or config, derive sensible defaults
         if ((!groupingDirs || groupingDirs.length === 0) && !configGrouping) {
           const foundPackages = Array.from(fileMap.keys()).some((p) => p.includes('/packages/'));
@@ -630,7 +683,21 @@ export default function App() {
               width={canvasWidth}
               height={canvasHeight}
               packageBounds={packageBounds}
-              simulationOptions={{ linkDistance: 180, chargeStrength: -800, collisionRadius: 56, centerStrength: 0.08 }}
+              simulationOptions={{ 
+                // Standard D3 force-directed graph parameters
+                linkDistance: 260,
+                chargeStrength: -600, // stronger repulsion to spread nodes
+                collisionRadius: 50, // larger collision radius to keep nodes apart
+                centerStrength: 0.08, // gentle center pull
+                // Aggressive stabilization: faster cooling and high damping
+                alphaDecay: 0.2,
+                velocityDecay: 0.98,
+                // Stop earlier and use a modest warm alpha on restarts
+                alphaMin: 0.08,
+                warmAlpha: 0.06,
+                // Safety stop after ~0.7s
+                maxSimulationTimeMs: 700,
+              }}
               enableDrag={dragEnabled}
               onNodeClick={(node) => setSelectedNode(node)}
               onNodeHover={(node) => setHoveredNode(node)}
@@ -647,7 +714,7 @@ export default function App() {
           <div className="details">
             <h2>Details</h2>
 
-            {selectedNode ? (
+            {selectedNode && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <button
@@ -735,134 +802,56 @@ export default function App() {
                   </div>
                 )}
               </div>
-            ) : hoveredNode ? (
+            )}
+
+            {!selectedNode && hoveredNode && (
               <div>
                 <div>
                   <h3 style={{ margin: '6px 0 4px' }}>Hovered Node</h3>
                   <p style={{ margin: 0, color: '#4b5563' }}>{hoveredNode.label}</p>
                 </div>
               </div>
-            ) : (
+            )}
+
+            {!selectedNode && !hoveredNode && (
               <p style={{ color: '#6b7280' }}>Click on a node to see details</p>
             )}
 
-            {/* Only show legend and stats when not viewing a selected node */}
-            {!selectedNode && (
-              <div className="legend">
-              <h3 style={{ marginTop: 16, marginBottom: 8 }}>Legend</h3>
-              <div className="legend-section">
-                <div className="legend-title">Severity (Node Color)</div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleSeverities((s) => ({ ...s, critical: !s.critical }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.critical ? 1 : 0.35 }}
-                >
-                  <span className="legend-swatch" style={{ background: '#ef4444' }} />Critical
+            <div className="legend-and-stats">
+              <h3 style={{ marginTop: 12 }}>Legend</h3>
+              <div style={{ display: 'grid', gap: 10, fontSize: 13 }}>
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Node Severity</div>
+                  <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                    {Object.entries(SEVERITY_COLORS).map(([k, c]) => (
+                      <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ width: 14, height: 14, background: c, borderRadius: 3, border: '1px solid #e6e9ef' }} />
+                        <div style={{ color: '#4b5563', fontSize: 13 }}>{k}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleSeverities((s) => ({ ...s, major: !s.major }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.major ? 1 : 0.35 }}
-                >
-                  <span className="legend-swatch" style={{ background: '#f97316' }} />Major
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleSeverities((s) => ({ ...s, minor: !s.minor }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.minor ? 1 : 0.35 }}
-                >
-                  <span className="legend-swatch" style={{ background: '#f59e0b' }} />Minor
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleSeverities((s) => ({ ...s, info: !s.info }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleSeverities.info ? 1 : 0.35 }}
-                >
-                  <span className="legend-swatch" style={{ background: '#60a5fa' }} />Info
+
+                <div>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>Edge Types</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {Object.entries(LINK_STYLES).map(([type, s]) => (
+                      <div key={type} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ width: 36, height: 6, background: s.color, borderRadius: 3, opacity: 0.9 }} />
+                        <div style={{ color: '#4b5563' }}>{type} — {s.width}px</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <div className="legend-section">
-                <div className="legend-title">Edges</div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, dependency: !s.dependency }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.dependency ? 1 : 0.35 }}
-                >
-                  <span className="legend-line" style={{ background: '#2563eb' }} />Dependency
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, similarity: !s.similarity }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.similarity ? 1 : 0.35 }}
-                >
-                  <span className="legend-line" style={{ background: '#a855f7' }} />Similarity
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, reference: !s.reference }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.reference ? 1 : 0.35 }}
-                >
-                  <span className="legend-line" style={{ background: '#22c55e' }} />Reference
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, package: !s.package }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.package ? 1 : 0.35 }}
-                >
-                  <span className="legend-line" style={{ background: '#94a3b8' }} />Package Boundary
-                </div>
-                <div
-                  role="button"
-                  onClick={() => setVisibleEdgeTypes((s) => ({ ...s, related: !s.related }))}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', opacity: visibleEdgeTypes.related ? 1 : 0.35 }}
-                >
-                  <span className="legend-line" style={{ background: '#cbd5f5' }} />Related
-                </div>
-              </div>
-              <div className="legend-section">
-                <div className="legend-title">Node Size</div>
-                <div className="legend-row">Token cost + issue count</div>
+
+              <h3 style={{ marginTop: 12 }}>Stats</h3>
+              <div style={{ fontSize: 13 }}>
+                <div>Nodes: {nodes.length}</div>
+                <div>Links: {links.length}</div>
+                <div>Packages: {metadata.totalPackages}</div>
               </div>
             </div>
-
-            {!selectedNode && (
-              <div className="stats">
-              <h3 style={{ marginTop: 16, marginBottom: 8 }}>Graph Stats</h3>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                  <div style={{ color: '#6b7280' }}>Nodes:</div>
-                  <div style={{ fontWeight: 600 }}>{nodes.length}</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <div style={{ color: '#6b7280' }}>Links:</div>
-                  <div style={{ fontWeight: 600 }}>{links.length}</div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-                <div style={{ color: '#6b7280' }}>Packages:</div>
-                <div style={{ fontWeight: 600 }}>{metadata.totalPackages}</div>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>Issues</div>
-                <div style={{ display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Critical</span>
-                    <span>{metadata.criticalIssues}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Major</span>
-                    <span>{metadata.majorIssues}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Minor</span>
-                    <span>{metadata.minorIssues}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#6b7280' }}>Info</span>
-                    <span>{metadata.infoIssues}</span>
-                  </div>
-                </div>
-              </div>
-              </div>
-            )}
           </div>
         </aside>
       </div>

@@ -137,7 +137,7 @@ function generateHTML(graph: GraphData): string {
           const g1 = sNode.group || '__default';
           const g2 = tNode.group || '__default';
           if (g1 === g2) return;
-          const key = g1 < g2 ? `${g1}::${g2}` : `${g2}::${g1}`;
+          const key = g1 < g2 ? (g1 + '::' + g2) : (g2 + '::' + g1);
           groupRelations[key] = (groupRelations[key] || 0) + 1;
         });
 
