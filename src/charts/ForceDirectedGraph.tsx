@@ -1,12 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
 import * as d3 from 'd3';
-import {
-  useForceSimulation,
-  type SimulationNode,
-  type SimulationLink,
-  type ForceSimulationOptions,
-} from '../hooks/useForceSimulation';
+import { useForceSimulation, type SimulationNode, type SimulationLink, type ForceSimulationOptions } from '../hooks/useForceSimulation';
 import { cn } from '../utils/cn';
+import NodeItem from './NodeItem';
+import LinkItem from './LinkItem';
 
 export interface GraphNode extends SimulationNode {
   id: string;
@@ -14,6 +11,8 @@ export interface GraphNode extends SimulationNode {
   color?: string;
   size?: number;
   group?: string;
+  kind?: 'file' | 'package';
+  packageGroup?: string;
 }
 
 export interface GraphLink extends SimulationLink {
@@ -23,157 +22,38 @@ export interface GraphLink extends SimulationLink {
 }
 
 export interface ForceDirectedGraphHandle {
-  /**
-   * Pin all nodes in place
-   */
   pinAll: () => void;
-
-  /**
-   * Unpin all nodes (release constraints)
-   */
   unpinAll: () => void;
-
-  /**
-   * Reset all nodes to auto-layout (unpin and restart simulation)
-   */
   resetLayout: () => void;
-
-  /**
-   * Fit all nodes in the current view
-   */
   fitView: () => void;
-
-  /**
-   * Get currently pinned node IDs
-   */
   getPinnedNodes: () => string[];
-
-  /**
-   * Toggle dragging mode
-   */
   setDragMode: (enabled: boolean) => void;
 }
 
 export interface ForceDirectedGraphProps {
-  /**
-   * Array of nodes to display
-   */
   nodes: GraphNode[];
-
-  /**
-   * Array of links between nodes
-   */
   links: GraphLink[];
-
-  /**
-   * Width of the graph container
-   */
   width: number;
-
-  /**
-   * Height of the graph container
-   */
   height: number;
-
-  /**
-   * Force simulation options
-   */
   simulationOptions?: Partial<ForceSimulationOptions>;
-
-  /**
-   * Whether to enable zoom and pan
-   * @default true
-   */
   enableZoom?: boolean;
-
-  /**
-   * Whether to enable node dragging
-   * @default true
-   */
   enableDrag?: boolean;
-
-  /**
-   * Callback when a node is clicked
-   */
   onNodeClick?: (node: GraphNode) => void;
-
-  /**
-   * Callback when a node is hovered
-   */
   onNodeHover?: (node: GraphNode | null) => void;
-
-  /**
-   * Callback when a link is clicked
-   */
   onLinkClick?: (link: GraphLink) => void;
-
-  /**
-   * Selected node ID
-   */
   selectedNodeId?: string;
-
-  /**
-   * Hovered node ID
-   */
   hoveredNodeId?: string;
-
-  /**
-   * Default node color
-   * @default "#69b3a2"
-   */
   defaultNodeColor?: string;
-
-  /**
-   * Default node size
-   * @default 10
-   */
   defaultNodeSize?: number;
-
-  /**
-   * Default link color
-   * @default "#999"
-   */
   defaultLinkColor?: string;
-
-  /**
-   * Default link width
-   * @default 1
-   */
   defaultLinkWidth?: number;
-
-  /**
-   * Whether to show node labels
-   * @default true
-   */
   showNodeLabels?: boolean;
-
-  /**
-   * Whether to show link labels
-   * @default false
-   */
   showLinkLabels?: boolean;
-
-  /**
-   * Additional CSS classes
-   */
   className?: string;
-
-  /**
-   * Manual layout mode: disables forces, allows free dragging
-   * @default false
-   */
   manualLayout?: boolean;
-
-  /**
-   * Callback when manual layout mode is toggled
-   */
   onManualLayoutChange?: (enabled: boolean) => void;
-
-  /**
-   * Package bounds computed by the parent (pack layout): map of `pkg:group` -> {x,y,r}
-   */
   packageBounds?: Record<string, { x: number; y: number; r: number }>;
-}
+  }
 
 export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDirectedGraphProps>(
   (
@@ -206,6 +86,7 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
   const svgRef = useRef<SVGSVGElement>(null);
   const gRef = useRef<SVGGElement>(null);
   const [transform, setTransform] = useState({ k: 1, x: 0, y: 0 });
+  const transformRef = useRef(transform);
   const dragNodeRef = useRef<GraphNode | null>(null);
   const dragActiveRef = useRef(false);
   const [pinnedNodes, setPinnedNodes] = useState<Set<string>>(new Set());
@@ -216,72 +97,138 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
     internalDragEnabledRef.current = enableDrag;
   }, [enableDrag]);
 
-  // Initialize simulation with manualLayout mode
-  const onTick = (nodesCopy: any[], _linksCopy: any[], _sim: any) => {
-    const bounds = packageBounds && Object.keys(packageBounds).length ? packageBounds : undefined;
-    // fallback: if parent didn't provide packageBounds, compute locally from initialNodes
-    let effectiveBounds = bounds;
-    if (!effectiveBounds) {
-      try {
-        const counts: Record<string, number> = {};
-        (initialNodes || []).forEach((n: any) => {
-          if (n && n.kind === 'file') {
-            const g = n.packageGroup || 'root';
-            counts[g] = (counts[g] || 0) + 1;
+  // Initialize simulation - let React handle rendering based on node positions
+  const onTick = (_nodesCopy: any[], _linksCopy: any[], _sim: any) => {
+    // If package bounds are provided, gently pull file nodes toward their
+    // package center to create meaningful clusters.
+    try {
+      const boundsToUse = clusterBounds?.bounds ?? packageBounds;
+      const nodeClusterMap = clusterBounds?.nodeToCluster ?? {};
+      if (boundsToUse) {
+        Object.values(nodesById).forEach((n) => {
+          if (!n) return;
+          // Prefer explicit `group`, but fall back to `packageGroup` which is
+          // provided by the visualizer data. This ensures file nodes are
+          // pulled toward their package center (pkg:<name>) as intended.
+          const group = (n as any).group ?? (n as any).packageGroup as string | undefined;
+          const clusterKey = nodeClusterMap[n.id];
+          const key = clusterKey ?? (group ? `pkg:${group}` : undefined);
+          if (!key) return;
+          const center = (boundsToUse as any)[key];
+          if (!center) return;
+          const dx = center.x - (n.x ?? 0);
+          const dy = center.y - (n.y ?? 0);
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          // Much stronger pull so nodes reliably settle inside cluster areas
+          const pullStrength = Math.min(0.5, 0.15 * (dist / (center.r || 200)) + 0.06);
+          if (!isNaN(pullStrength) && isFinite(pullStrength)) {
+            n.vx = (n.vx ?? 0) + (dx / (dist || 1)) * pullStrength;
+            n.vy = (n.vy ?? 0) + (dy / (dist || 1)) * pullStrength;
+          }
+          // If outside cluster radius, apply a stronger inward correction scaled to excess
+          if (center.r && dist > center.r) {
+            const excess = (dist - center.r) / (dist || 1);
+            n.vx = (n.vx ?? 0) - dx * 0.02 * excess;
+            n.vy = (n.vy ?? 0) - dy * 0.02 * excess;
           }
         });
-        const children = Object.keys(counts).map((k) => ({ name: k, value: counts[k] }));
-        if (children.length > 0) {
-          const root = d3.hierarchy<any>({ children } as any).sum((d: any) => d.value as number);
-          const pack = d3.pack().size([width, height]).padding(30);
-          const packed = pack(root);
-          const map: Record<string, { x: number; y: number; r: number }> = {};
-          if (packed.children) {
-            packed.children.forEach((c: any) => {
-              map[`pkg:${c.data.name}`] = { x: c.x, y: c.y, r: c.r * 0.95 };
-            });
-            effectiveBounds = map;
-          }
-        }
-      } catch (e) {
-        // ignore fallback errors
       }
-    }
-    if (!effectiveBounds) return;
-    try {
-      Object.values(nodesCopy).forEach((n: any) => {
-        if (!n) return;
-        // only constrain file nodes (package nodes have their own fx/fy)
-        if (n.kind === 'package') return;
-        const pkg = n.packageGroup;
-        if (!pkg) return;
-        const bound = effectiveBounds[`pkg:${pkg}`];
-        if (!bound) return;
-        const margin = (n.size || 10) + 12;
-        const dx = (n.x || 0) - bound.x;
-        const dy = (n.y || 0) - bound.y;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 0.0001;
-        const maxDist = Math.max(1, bound.r - margin);
-        if (dist > maxDist) {
-          const desiredX = bound.x + dx * (maxDist / dist);
-          const desiredY = bound.y + dy * (maxDist / dist);
-          // gently interpolate node position toward the allowed area to avoid
-          // adding strong velocities which can cause bounce when zooming.
-          const softness = 0.12;
-          // interpolation keeps motion smooth across frames
-          n.x = n.x + (desiredX - n.x) * softness;
-          n.y = n.y + (desiredY - n.y) * softness;
-          // damp velocities to reduce oscillation
-          n.vx = (n.vx || 0) * 0.6;
-          n.vy = (n.vy || 0) * 0.6;
-        }
-      });
     } catch (e) {
-      // ignore
+      // ignore grouping errors
     }
+
+    // No DOM updates needed - React will re-render based on nodes state from useForceSimulation
+    // The useForceSimulation hook already calls setNodes on each tick (throttled)
+    // React components (NodeItem, LinkItem) will use node.x, node.y from the nodes state
   };
 
-  const { nodes, links, restart, stop, setForcesEnabled } = useForceSimulation(initialNodes, initialLinks, {
+  // main simulation is created after seeding below (so seededNodes can be used)
+
+  // --- Two-phase hierarchical layout: Phase A (package centers) + Phase B (local layouts)
+  // Compute package areas and per-node local positions, then seed the main simulation.
+  const { packageAreas, localPositions } = React.useMemo(() => {
+    try {
+      if (!initialNodes || !initialNodes.length) return { packageAreas: {}, localPositions: {} };
+      // Group nodes by package/group key
+      const groups = new Map<string, any[]>();
+      initialNodes.forEach((n: any) => {
+        const key = n.packageGroup || n.group || 'root';
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key)!.push(n);
+      });
+
+      const groupKeys = Array.from(groups.keys());
+      // Build pack layout for package centers
+      const children = groupKeys.map((k) => ({ name: k, value: Math.max(1, groups.get(k)!.length) }));
+      const root: any = d3.hierarchy({ children } as any);
+      root.sum((d: any) => d.value);
+      const pack: any = d3.pack().size([width, height]).padding(Math.max(20, Math.min(width, height) * 0.03));
+      const packed: any = pack(root);
+      const packageAreas: Record<string, { x: number; y: number; r: number }> = {};
+      if (packed.children) {
+        packed.children.forEach((c: any) => {
+          const name = c.data.name;
+          packageAreas[name] = { x: c.x, y: c.y, r: Math.max(40, c.r) };
+        });
+      }
+
+      // For each package, run a short local force simulation offscreen to compute local positions
+      const localPositions: Record<string, { x: number; y: number }> = {};
+      groups.forEach((nodesInGroup, _key) => {
+        if (!nodesInGroup || nodesInGroup.length === 0) return;
+        // create shallow copies for the local sim
+        const localNodes = nodesInGroup.map((n: any) => ({ id: n.id, x: Math.random() * 10 - 5, y: Math.random() * 10 - 5, size: n.size || 10 }));
+        // links restricted to intra-package
+        const localLinks = (initialLinks || []).filter((l: any) => {
+          const s = typeof l.source === 'string' ? l.source : (l.source && l.source.id);
+          const t = typeof l.target === 'string' ? l.target : (l.target && l.target.id);
+          return localNodes.some((ln: any) => ln.id === s) && localNodes.some((ln: any) => ln.id === t);
+        }).map((l: any) => ({ source: typeof l.source === 'string' ? l.source : l.source.id, target: typeof l.target === 'string' ? l.target : l.target.id }));
+
+        if (localNodes.length === 1) {
+          localPositions[localNodes[0].id] = { x: 0, y: 0 };
+          return;
+        }
+
+        const sim = d3.forceSimulation(localNodes as any)
+          .force('link', d3.forceLink(localLinks as any).id((d: any) => d.id).distance(30).strength(0.8))
+          .force('charge', d3.forceManyBody().strength(-15))
+          .force('collide', d3.forceCollide((d: any) => (d.size || 10) + 6).iterations(2))
+          .stop();
+
+        // Run several synchronous ticks to settle local layout
+        const ticks = 300;
+        for (let i = 0; i < ticks; i++) sim.tick();
+
+        localNodes.forEach((ln: any) => {
+          localPositions[ln.id] = { x: ln.x ?? 0, y: ln.y ?? 0 };
+        });
+      });
+
+      return { packageAreas, localPositions };
+    } catch (e) {
+      return { packageAreas: {}, localPositions: {} };
+    }
+  }, [initialNodes, initialLinks, width, height]);
+
+  // Seed main simulation nodes with package-local coordinates mapped into package areas
+  const seededNodes = React.useMemo(() => {
+    if (!initialNodes || !Object.keys(packageAreas || {}).length) return initialNodes;
+    return initialNodes.map((n: any) => {
+      const key = n.packageGroup || n.group || 'root';
+      const area = packageAreas[key];
+      const lp = localPositions[n.id];
+      if (!area || !lp) return n;
+      // scale local layout to fit inside package radius
+      const scale = Math.max(0.5, (area.r * 0.6) / (Math.max(1, Math.sqrt(lp.x * lp.x + lp.y * lp.y)) || 1));
+      return { ...n, x: area.x + lp.x * scale, y: area.y + lp.y * scale };
+    });
+  }, [initialNodes, packageAreas, localPositions]);
+
+
+  // Compute dependency-based clusters (connected components on dependency links)
+  // create the main force simulation using seeded nodes
+  const { nodes, links, restart, stop, setForcesEnabled } = useForceSimulation(seededNodes || initialNodes, initialLinks, {
     width,
     height,
     chargeStrength: manualLayout ? 0 : undefined,
@@ -289,13 +236,99 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
     ...simulationOptions,
   });
 
-  // If package bounds are provided, add a tick-time clamp via the hook's onTick option
+  // Helper map id -> node for quick lookup in onTick
+  const nodesById = React.useMemo(() => {
+    const m: Record<string, any> = {};
+    (nodes || []).forEach((n: any) => {
+      if (n && n.id) m[n.id] = n;
+    });
+    return m;
+  }, [nodes]);
+
+  const clusterBounds = React.useMemo(() => {
+    try {
+      if (!links || !nodes) return null;
+      const nodeIds = new Set(nodes.map((n) => n.id));
+      const adj = new Map<string, Set<string>>();
+      nodes.forEach((n) => adj.set(n.id, new Set()));
+      links.forEach((l: any) => {
+        const type = l.type || 'reference';
+        if (type !== 'dependency') return;
+        const s = typeof l.source === 'string' ? l.source : (l.source && l.source.id) || null;
+        const t = typeof l.target === 'string' ? l.target : (l.target && l.target.id) || null;
+        if (!s || !t) return;
+        if (!nodeIds.has(s) || !nodeIds.has(t)) return;
+        adj.get(s)?.add(t);
+        adj.get(t)?.add(s);
+      });
+
+      const visited = new Set<string>();
+      const comps: Array<string[]> = [];
+      for (const nid of nodeIds) {
+        if (visited.has(nid)) continue;
+        const stack = [nid];
+        const comp: string[] = [];
+        visited.add(nid);
+        while (stack.length) {
+          const cur = stack.pop()!;
+          comp.push(cur);
+          const neigh = adj.get(cur);
+          if (!neigh) continue;
+          for (const nb of neigh) {
+            if (!visited.has(nb)) {
+              visited.add(nb);
+              stack.push(nb);
+            }
+          }
+        }
+        comps.push(comp);
+      }
+
+      if (comps.length <= 1) return null;
+
+      // Increase spread: scale the packing area slightly larger than viewport,
+      // give more padding between clusters, and bias radii upward so nodes
+      // have more room to sit inside cluster circles.
+      const children = comps.map((c, i) => ({ name: String(i), value: Math.max(1, c.length) }));
+      d3.hierarchy({ children } as any).sum((d: any) => d.value).sort((a: any, b: any) => b.value - a.value);
+      // Use a radial layout to guarantee very large separation between clusters.
+      // Place cluster centers on a circle around the viewport center with a
+      // radius scaled aggressively by viewport size and cluster count.
+      const num = comps.length;
+      const cx = width / 2;
+      const cy = height / 2;
+      // Circle radius grows with viewport and number of clusters to force separation
+      const base = Math.max(width, height);
+      // Make cluster circle radius extremely large so clusters are very far apart.
+      // Scale with number of clusters to avoid crowding; multiply heavily for drastic separation.
+      const circleRadius = base * Math.max(30, num * 20, Math.sqrt(num) * 12);
+      const map: Record<string, { x: number; y: number; r: number }> = {};
+      comps.forEach((c, i) => {
+        const angle = (2 * Math.PI * i) / num;
+        const x = cx + Math.cos(angle) * circleRadius;
+        const y = cy + Math.sin(angle) * circleRadius;
+        const sizeBias = Math.sqrt(Math.max(1, c.length));
+        const r = Math.max(200, 100 * sizeBias);
+        map[`cluster:${i}`] = { x, y, r };
+      });
+      // Map node id -> cluster id center
+      const nodeToCluster: Record<string, string> = {};
+      comps.forEach((c, i) => c.forEach((nid) => (nodeToCluster[nid] = `cluster:${i}`)));
+      return { bounds: map, nodeToCluster };
+    } catch (e) {
+      return null;
+    }
+  }, [nodes, links, width, height]);
+
+  // If package or cluster bounds are provided, recreate the simulation so onTick gets the latest bounds
   useEffect(() => {
-    if (!packageBounds) return;
-    // nothing to do here because the hook will call onTick passed in creation; we need to recreate simulation to use onTick
-    // So restart the simulation to pick up potential changes in node bounds.
-    try { restart(); } catch (e) {}
-  }, [packageBounds, restart]);
+    if (!packageBounds && !clusterBounds && (!packageAreas || Object.keys(packageAreas).length === 0)) return;
+    try {
+      restart();
+    } catch (e) {
+      // ignore
+    }
+  }, [packageBounds, clusterBounds, packageAreas, restart]);
 
   // If manual layout is enabled or any nodes are pinned, disable forces
   useEffect(() => {
@@ -410,6 +443,7 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
       .scaleExtent([0.1, 10])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
+        transformRef.current = event.transform;
         setTransform(event.transform);
       });
 
@@ -419,6 +453,31 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
       svg.on('.zoom', null);
     };
   }, [enableZoom]);
+
+  // Run a one-time DOM positioning pass when nodes/links change so elements
+  // rendered by React are positioned to the simulation's seeded coordinates
+  useEffect(() => {
+    if (!gRef.current) return;
+    try {
+      const g = d3.select(gRef.current);
+      g.selectAll<SVGGElement, any>('g.node').each(function (this: SVGGElement) {
+        const datum = d3.select(this).datum() as any;
+        if (!datum) return;
+        d3.select(this).attr('transform', `translate(${datum.x || 0},${datum.y || 0})`);
+      });
+
+      g.selectAll<SVGLineElement, any>('line').each(function (this: SVGLineElement) {
+        const l = d3.select(this).datum() as any;
+        if (!l) return;
+        const s: any = typeof l.source === 'object' ? l.source : nodes.find((n) => n.id === l.source) || l.source;
+        const t: any = typeof l.target === 'object' ? l.target : nodes.find((n) => n.id === l.target) || l.target;
+        if (!s || !t) return;
+        d3.select(this).attr('x1', s.x).attr('y1', s.y).attr('x2', t.x).attr('y2', t.y);
+      });
+    } catch (e) {
+      // ignore
+    }
+  }, [nodes, links]);
 
   // Set up drag behavior with global listeners for smoother dragging
   const handleDragStart = useCallback(
@@ -445,8 +504,9 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
       const svg = svgRef.current;
       if (!svg) return;
       const rect = svg.getBoundingClientRect();
-      const x = (event.clientX - rect.left - transform.x) / transform.k;
-      const y = (event.clientY - rect.top - transform.y) / transform.k;
+      const t: any = transformRef.current;
+      const x = (event.clientX - rect.left - t.x) / t.k;
+      const y = (event.clientY - rect.top - t.y) / t.k;
       dragNodeRef.current.fx = x;
       dragNodeRef.current.fy = y;
     };
@@ -474,7 +534,7 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
       window.removeEventListener('mouseout', handleWindowLeave);
       window.removeEventListener('blur', handleWindowUp);
     };
-  }, [enableDrag, transform]);
+  }, [enableDrag]);
 
   // Attach d3.drag behavior to node groups rendered by React. This helps make
   // dragging more robust across transforms and pointer behaviors.
@@ -615,97 +675,36 @@ export const ForceDirectedGraph = forwardRef<ForceDirectedGraphHandle, ForceDire
 
       <g ref={gRef}>
         
-        {/* Render links */}
-        {links.map((link, i) => {
-          const source = link.source as GraphNode;
-          const target = link.target as GraphNode;
-          if (source.x == null || source.y == null || target.x == null || target.y == null) return null;
+        {/* Render links via LinkItem (positions updated by D3) */}
+        {links.map((link, i) => (
+          <LinkItem
+            key={`link-${i}`}
+            link={link as GraphLink}
+            onClick={handleLinkClick}
+            defaultWidth={defaultLinkWidth}
+            showLabel={showLinkLabels}
+            nodes={nodes}
+          />
+        ))}
 
-          return (
-            <g key={`link-${i}`}>
-              <line
-                x1={source.x}
-                y1={source.y}
-                x2={target.x}
-                y2={target.y}
-                stroke={link.color || defaultLinkColor}
-                strokeWidth={link.width || defaultLinkWidth}
-                opacity={0.6}
-                className="cursor-pointer transition-opacity hover:opacity-100"
-                onClick={() => handleLinkClick(link)}
-              />
-              {showLinkLabels && link.label && (
-                <text
-                  x={(source.x + target.x) / 2}
-                  y={(source.y + target.y) / 2}
-                  fill="#666"
-                  fontSize="10"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  pointerEvents="none"
-                >
-                  {link.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
-
-        {/* Render nodes */}
-        {nodes.map((node) => {
-          if (node.x == null || node.y == null) return null;
-
-          const isSelected = selectedNodeId === node.id;
-          const isHovered = hoveredNodeId === node.id;
-          const nodeSize = node.size || defaultNodeSize;
-          const nodeColor = node.color || defaultNodeColor;
-
-          return (
-            <g
-                key={node.id}
-                transform={`translate(${node.x},${node.y})`}
-                className="cursor-pointer node"
-                data-id={node.id}
-                onClick={() => handleNodeClick(node)}
-                onDoubleClick={(event) => handleNodeDoubleClick(event, node)}
-                onMouseEnter={() => handleNodeMouseEnter(node)}
-                onMouseLeave={handleNodeMouseLeave}
-                onMouseDown={(e) => handleDragStart(e, node)}
-              >
-              <circle
-                r={nodeSize}
-                fill={nodeColor}
-                stroke={isSelected ? '#000' : isHovered ? '#666' : 'none'}
-                strokeWidth={pinnedNodes.has(node.id) ? 3 : isSelected ? 2.5 : isHovered ? 2 : 1.5}
-                opacity={isHovered || isSelected ? 1 : 0.9}
-                className="transition-all"
-              />
-              {pinnedNodes.has(node.id) && (
-                <circle
-                  r={nodeSize + 4}
-                  fill="none"
-                  stroke="#ff6b6b"
-                  strokeWidth={1}
-                  opacity={0.5}
-                  className="pointer-events-none"
-                />
-              )}
-              {showNodeLabels && node.label && (
-                <text
-                  y={nodeSize + 15}
-                  fill="#333"
-                  fontSize="12"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  pointerEvents="none"
-                  className="select-none"
-                >
-                  {node.label}
-                </text>
-              )}
-            </g>
-          );
-        })}
+        {/* Render nodes via NodeItem (D3 will set transforms) */}
+        {nodes.map((node) => (
+          <NodeItem
+            key={node.id}
+            node={node as GraphNode}
+            isSelected={selectedNodeId === node.id}
+            isHovered={hoveredNodeId === node.id}
+            pinned={pinnedNodes.has(node.id)}
+            defaultNodeSize={defaultNodeSize}
+            defaultNodeColor={defaultNodeColor}
+            showLabel={showNodeLabels}
+            onClick={handleNodeClick}
+            onDoubleClick={handleNodeDoubleClick}
+            onMouseEnter={handleNodeMouseEnter}
+            onMouseLeave={handleNodeMouseLeave}
+            onMouseDown={handleDragStart}
+          />
+        ))}
         {/* Package boundary circles (from parent pack layout) - drawn on top for visibility */}
         {packageBounds && Object.keys(packageBounds).length > 0 && (
           <g className="package-boundaries" pointerEvents="none">

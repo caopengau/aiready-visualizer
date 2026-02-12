@@ -27,7 +27,10 @@
     "./hooks/useDebounce": "./dist/hooks/useDebounce.js",
     "./hooks/useD3": "./dist/hooks/useD3.js",
     "./hooks/useForceSimulation": "./dist/hooks/useForceSimulation.js",
-    "./charts/ForceDirectedGraph": "./dist/charts/ForceDirectedGraph.js",
+    "./charts/ForceDirectedGraph": {
+      "import": "./dist/charts/ForceDirectedGraph.js",
+      "types": "./dist/charts/ForceDirectedGraph.d.ts"
+    },
     "./tailwind-config": "./tailwind.config.js"
   },
   "files": [
