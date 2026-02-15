@@ -79,8 +79,17 @@ function App() {
           )}
         </div>
 
-        <LegendPanel colors={colors} />
-        <NodeDetails colors={colors} selectedNode={selectedNode} />
+        {/* Right panel: Legend + NodeDetails */}
+        <div className="w-64 border-l flex flex-col overflow-hidden" style={{ backgroundColor: colors.panel, borderColor: colors.panelBorder }}>
+          <div className="flex-1 overflow-auto">
+            <LegendPanel colors={colors} />
+          </div>
+          {selectedNode && (
+            <div className="border-t" style={{ borderColor: colors.panelBorder }}>
+              <NodeDetails colors={colors} selectedNode={selectedNode} onClose={() => setSelectedNode(null)} />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

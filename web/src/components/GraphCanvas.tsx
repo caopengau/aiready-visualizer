@@ -150,7 +150,7 @@ export function GraphCanvas({
   }, [data, dimensions, effectiveTheme, onNodeClick]);
 
   return (
-    <div className="flex-1 relative">
+    <div className="flex-1 relative w-full h-full">
       <div
         className="absolute inset-0 pointer-events-none z-0"
         style={{
@@ -160,11 +160,11 @@ export function GraphCanvas({
       />
       <svg
         ref={svgRef}
-        width={dimensions.width || '100%'}
-        height={dimensions.height || '100%'}
-        style={{ display: 'block', backgroundColor: 'transparent', zIndex: 10, position: 'relative' }}
+        width="100%"
+        height="100%"
+        style={{ display: 'block', backgroundColor: 'transparent', zIndex: 10, position: 'absolute', top: 0, left: 0 }}
       />
-      <div className="absolute bottom-6 left-6">
+      <div className="absolute bottom-6 left-6 z-20">
         <div
           className="px-4 py-2.5 rounded-lg backdrop-blur-sm border text-xs flex items-center gap-2"
           style={{
