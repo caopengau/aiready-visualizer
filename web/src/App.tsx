@@ -685,18 +685,18 @@ export default function App() {
               packageBounds={packageBounds}
               simulationOptions={{ 
                 // Standard D3 force-directed graph parameters
-                linkDistance: 260,
-                chargeStrength: -600, // stronger repulsion to spread nodes
-                collisionRadius: 50, // larger collision radius to keep nodes apart
-                centerStrength: 0.08, // gentle center pull
-                // Aggressive stabilization: faster cooling and high damping
-                alphaDecay: 0.2,
-                velocityDecay: 0.98,
-                // Stop earlier and use a modest warm alpha on restarts
-                alphaMin: 0.08,
-                warmAlpha: 0.06,
-                // Safety stop after ~0.7s
-                maxSimulationTimeMs: 700,
+                linkDistance: 200,
+                chargeStrength: -800, // stronger repulsion to spread nodes
+                collisionRadius: 40, // collision radius to keep nodes apart
+                centerStrength: 0.05, // gentle center pull
+                // Balanced stabilization: smoother cooling for better layout
+                alphaDecay: 0.2, // Standard decay for gradual cooling
+                velocityDecay: 0.4, // Moderate friction for natural movement
+                // Run longer for better convergence
+                alphaMin: 0.01, // Lower threshold for complete stabilization
+                warmAlpha: 0.3, // More initial energy for spreading
+                // Safety stop after 5s max (gives time for complex graphs)
+                maxSimulationTimeMs: 5000,
               }}
               enableDrag={dragEnabled}
               onNodeClick={(node) => setSelectedNode(node)}
