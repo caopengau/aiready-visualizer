@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import * as d3 from 'd3';
 import { FileNode, GraphData, ThemeColors, EffectiveTheme } from '../types';
 import { severityColors, edgeColors, GRAPH_CONFIG } from '../constants';
@@ -20,9 +20,14 @@ export function GraphCanvas({
   onNodeClick,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const simulationRef = useRef<d3.Simulation<d3.SimulationNodeDatum, undefined> | null>(null);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const transformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
 
+  // Initialize graph only when data or dimensions change
   useEffect(() => {
     if (!data || !svgRef.current || !data.nodes.length) return;
+    if (dimensions.width === 0 || dimensions.height === 0) return;
 
     const svg = d3.select(svgRef.current);
     const { width, height } = dimensions;
@@ -31,13 +36,20 @@ export function GraphCanvas({
 
     const g = svg.append('g');
 
-    // Setup zoom
+    // Setup zoom and preserve transform
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([GRAPH_CONFIG.zoomMin, GRAPH_CONFIG.zoomMax])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
+        transformRef.current = event.transform;
       });
     svg.call(zoom);
+    zoomRef.current = zoom;
+    
+    // Apply preserved transform if exists
+    if (transformRef.current) {
+      svg.call(zoom.transform, transformRef.current);
+    }
 
     // Prepare nodes and links
     const nodes = data.nodes.map(d => ({ ...d }));
@@ -57,6 +69,8 @@ export function GraphCanvas({
       .force('collision', d3.forceCollide().radius(GRAPH_CONFIG.collisionRadius))
       .force('x', d3.forceX(width / 2).strength(GRAPH_CONFIG.simulation.centerStrength))
       .force('y', d3.forceY(height / 2).strength(GRAPH_CONFIG.simulation.centerStrength));
+
+    simulationRef.current = simulation;
 
     // Create link group
     const linkGroup = g.append('g').attr('class', 'links');
@@ -79,10 +93,10 @@ export function GraphCanvas({
       .append('g')
       .attr('cursor', 'pointer')
       .call(
-        d3.drag<SVGGElement, any>()
+        d3.drag<SVGGElement, unknown>()
           .on('start', dragstarted)
           .on('drag', dragged)
-          .on('end', dragended) as any
+          .on('end', dragended) as unknown as (selection: d3.Selection<SVGGElement, unknown, SVGGElement, unknown>, ...args: unknown[]) => void
       );
 
     // Add circles to nodes
@@ -147,7 +161,30 @@ export function GraphCanvas({
     return () => {
       simulation.stop();
     };
-  }, [data, dimensions, effectiveTheme, onNodeClick]);
+  }, [data, dimensions.width, dimensions.height]);
+
+  // Update theme colors without recreating the graph
+  useEffect(() => {
+    if (!svgRef.current) return;
+    
+    const svg = d3.select(svgRef.current);
+    const g = svg.select('g');
+    
+    if (g.empty()) return;
+    
+    // Update node strokes
+    g.selectAll('circle')
+      .attr('stroke', effectiveTheme === 'dark' ? '#fff' : '#000');
+    
+    // Update text colors
+    g.selectAll('text')
+      .attr('fill', effectiveTheme === 'dark' ? '#e2e8f0' : '#1e293b');
+    
+    // Preserve zoom transform
+    if (zoomRef.current) {
+      svg.call(zoomRef.current.transform, transformRef.current);
+    }
+  }, [effectiveTheme]);
 
   return (
     <div className="flex-1 relative w-full h-full">
