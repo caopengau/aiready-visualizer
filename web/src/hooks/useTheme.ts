@@ -2,8 +2,12 @@ import { useEffect, useState } from 'react';
 import { Theme, EffectiveTheme } from '../types';
 
 export function useTheme() {
-  const [theme, setTheme] = useState<Theme>('dark');
-  const [systemTheme, setSystemTheme] = useState<EffectiveTheme>('dark');
+  const getSystemTheme = (): EffectiveTheme => {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  const [theme, setTheme] = useState<Theme>('system');
+  const [systemTheme, setSystemTheme] = useState<EffectiveTheme>(getSystemTheme());
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');

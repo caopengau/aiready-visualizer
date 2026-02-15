@@ -1,10 +1,12 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+
 export default defineConfig(({ command }) => {
     const isDev = command === 'serve';
     return {
-        plugins: [react()],
+        plugins: [react(), tailwindcss()],
         build: {
             outDir: 'dist',
             emptyOutDir: true,
