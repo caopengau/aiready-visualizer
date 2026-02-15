@@ -56,7 +56,7 @@ interface LegendPanelProps {
 
 export function LegendPanel({ colors }: LegendPanelProps) {
   return (
-    <div style={{ padding: '16px 16px' }}>
+    <div style={{ padding: '16px 16px', animation: 'fadeIn 0.2s ease-in' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {/* Header */}
         <div style={{ paddingBottom: '16px', borderBottom: `1px solid ${colors.cardBorder}` }}>

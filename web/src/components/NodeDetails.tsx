@@ -46,13 +46,15 @@ interface NodeDetailsProps {
 export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps) {
   return (
     <div 
-      className="p-6 overflow-auto"
       style={{ 
-        backgroundColor: colors.panel
+        padding: '16px 16px',
+        height: '100%',
+        overflow: 'auto',
+        animation: 'fadeIn 0.2s ease-in'
       }}
     >
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center" style={{ marginBottom: '16px' }}>
         <div className="flex items-center gap-2">
           <div 
             className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" 
@@ -79,7 +81,7 @@ export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps)
       </div>
       
       {selectedNode ? (
-        <div className="space-y-5">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* File Name - No border, just padding */}
           <div className="p-4 rounded-xl" 
             style={{ 
