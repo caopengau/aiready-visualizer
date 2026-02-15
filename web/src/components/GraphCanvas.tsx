@@ -27,7 +27,7 @@ export function GraphCanvas({
   // Initialize graph only when data or dimensions change
   useEffect(() => {
     if (!data || !svgRef.current || !data.nodes.length) return;
-    if (dimensions.width === 0 || dimensions.height === 0) return;
+    if (!dimensions.width || !dimensions.height) return;
 
     const svg = d3.select(svgRef.current);
     const { width, height } = dimensions;
@@ -161,7 +161,7 @@ export function GraphCanvas({
     return () => {
       simulation.stop();
     };
-  }, [data, dimensions.width, dimensions.height]);
+  }, [data, dimensions.width, dimensions.height, effectiveTheme]);
 
   // Update theme colors without recreating the graph
   useEffect(() => {
