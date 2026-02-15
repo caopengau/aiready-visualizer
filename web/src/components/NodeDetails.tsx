@@ -1,5 +1,42 @@
 import { ThemeColors, FileNode } from '../types';
 
+// Info Row Component for consistent styling
+function InfoRow({ 
+  label, 
+  value, 
+  valueColor = 'inherit',
+  highlight = false,
+  colors
+}: { 
+  label: string; 
+  value: string | number;
+  valueColor?: string;
+  highlight?: boolean;
+  colors: ThemeColors;
+}) {
+  return (
+    <div 
+      className="flex justify-between items-center py-2.5 px-3 rounded-lg transition-colors hover:bg-white/5"
+    >
+      <span 
+        className="text-xs font-medium"
+        style={{ color: colors.textMuted }}
+      >
+        {label}
+      </span>
+      <span 
+        className={`text-xs font-semibold ${highlight ? 'px-3 py-1 rounded-full' : ''}`}
+        style={{ 
+          color: valueColor,
+          backgroundColor: highlight ? `${valueColor}25` : 'transparent'
+        }}
+      >
+        {value}
+      </span>
+    </div>
+  );
+}
+
 interface NodeDetailsProps {
   colors: ThemeColors;
   selectedNode: FileNode | null;
@@ -9,177 +46,163 @@ interface NodeDetailsProps {
 export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps) {
   return (
     <div 
-      className="p-4 rounded-2xl border overflow-auto" 
-      style={{ backgroundColor: colors.cardBg, borderColor: colors.cardBorder }}
+      className="p-6 overflow-auto"
+      style={{ 
+        backgroundColor: colors.panel
+      }}
     >
-      <div className="flex justify-between items-center mb-4">
-        <h3 
-          className="text-sm font-bold uppercase tracking-widest" 
-          style={{ color: colors.textMuted }}
-        >
-          Selected
-        </h3>
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <div 
+            className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" 
+          />
+          <h3 
+            className="text-xs font-bold uppercase tracking-widest" 
+            style={{ color: colors.textMuted }}
+          >
+            Selected Node
+          </h3>
+        </div>
         {onClose && (
           <button 
             onClick={onClose}
-            className="p-1 rounded hover:bg-opacity-20 hover:bg-gray-500"
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
             style={{ color: colors.textMuted }}
+            title="Close details"
           >
-            ✕
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
           </button>
         )}
       </div>
       
       {selectedNode ? (
-        <div>
-          <div className="mb-4">
-            <h4 className="font-semibold text-sm mb-1 truncate">{selectedNode.label}</h4>
+        <div className="space-y-5">
+          {/* File Name - No border, just padding */}
+          <div className="p-4 rounded-xl" 
+            style={{ 
+              backgroundColor: `${colors.cardBg}80`
+            }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-amber-400">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                <polyline points="14,2 14,8 20,8" />
+              </svg>
+              <h4 className="font-semibold text-sm truncate" style={{ color: colors.text }}>
+                {selectedNode.label}
+              </h4>
+            </div>
             <p 
-              className="text-xs break-all" 
+              className="text-xs break-all truncate" 
               style={{ color: colors.textMuted }}
+              title={selectedNode.id}
             >
               {selectedNode.id}
             </p>
           </div>
           
-          <div className="space-y-3 text-xs">
-            <div className="flex justify-between items-center">
-              <span style={{ color: colors.textMuted }}>Severity:</span>
-              <span 
-                className="font-semibold capitalize px-3 py-1 rounded-full text-xs"
-                style={{ 
-                  color: selectedNode.color, 
-                  backgroundColor: `${selectedNode.color}20` 
-                }}
-              >
-                {selectedNode.severity || 'none'}
+          {/* Metrics - No border */}
+          <div className="rounded-xl p-1">
+            <div className="px-3 py-2">
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: colors.textMuted }}>
+                Metrics
               </span>
             </div>
-            
-            <div className="flex justify-between items-center">
-              <span style={{ color: colors.textMuted }}>Token Cost:</span>
-              <span className="font-semibold text-cyan-400">
-                {selectedNode.tokenCost || 0}
-              </span>
+            <div className="p-1">
+              <InfoRow 
+                label="Severity" 
+                value={selectedNode.severity || 'none'} 
+                valueColor={selectedNode.color}
+                highlight
+                colors={colors}
+              />
+              <InfoRow 
+                label="Token Cost" 
+                value={selectedNode.tokenCost?.toLocaleString() || '0'} 
+                valueColor="#22d3ee"
+                colors={colors}
+              />
+              {selectedNode.duplicates !== undefined && (
+                <InfoRow 
+                  label="Issues Found" 
+                  value={selectedNode.duplicates} 
+                  valueColor="#c084fc"
+                  colors={colors}
+                />
+              )}
             </div>
-            
-            {selectedNode.duplicates !== undefined && (
-              <div className="flex justify-between items-center">
-                <span style={{ color: colors.textMuted }}>Issues:</span>
-                <span className="font-semibold text-purple-400">
-                  {selectedNode.duplicates}
-                </span>
-              </div>
-            )}
           </div>
           
+          {/* Description/Details - No border */}
           {selectedNode.title && (
             <div 
-              className="mt-4 pt-3 border-t text-xs" 
-              style={{ borderColor: colors.cardBorder, color: colors.textMuted }}
+              className="rounded-xl p-4"
+              style={{ 
+                backgroundColor: `${colors.cardBg}80`
+              }}
             >
-              <pre className="whitespace-pre-wrap font-mono leading-relaxed">
+              <div className="flex items-center gap-2 mb-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: colors.textMuted }}>
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                <h5 
+                  className="text-xs font-semibold uppercase tracking-wider" 
+                  style={{ color: colors.textMuted }}
+                >
+                  Details
+                </h5>
+              </div>
+              <pre 
+                className="text-xs whitespace-pre-wrap font-mono leading-relaxed p-3 rounded-lg"
+                style={{ 
+                  color: colors.textMuted,
+                  backgroundColor: colors.panel,
+                  maxHeight: '150px',
+                  overflow: 'auto'
+                }}
+              >
                 {selectedNode.title}
               </pre>
             </div>
           )}
         </div>
       ) : (
-        <p 
-          className="text-sm" 
-          style={{ color: colors.textMuted }}
+        <div 
+          className="flex flex-col items-center justify-center py-10 text-center rounded-xl"
+          style={{ 
+            backgroundColor: `${colors.cardBg}50`
+          }}
         >
-          Click a node to view details
-        </p>
+          <svg 
+            width="48" 
+            height="48" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="currentColor" 
+            strokeWidth="1.5"
+            className="mb-3 opacity-40"
+            style={{ color: colors.textMuted }}
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <p 
+            className="text-sm font-medium" 
+            style={{ color: colors.textMuted }}
+          >
+            Click a node to view details
+          </p>
+        </div>
       )}
     </div>
   );
 }
 
+// Keep the old component for backwards compatibility
 export function NodeDetailsOld({ colors, selectedNode }: NodeDetailsProps) {
-  return (
-    <div 
-      className="flex-1 p-6 rounded-2xl border overflow-auto" 
-      style={{ backgroundColor: colors.cardBg, borderColor: colors.cardBorder }}
-    >
-      <h3 
-        className="text-sm font-bold uppercase tracking-widest mb-5" 
-        style={{ color: colors.textMuted }}
-      >
-        Selected
-      </h3>
-      
-      {selectedNode ? (
-        <div>
-          <div className="mb-5">
-            <h4 className="font-semibold text-base mb-1">{selectedNode.label}</h4>
-            <p 
-              className="text-xs break-all" 
-              style={{ color: colors.textMuted }}
-            >
-              {selectedNode.id}
-            </p>
-          </div>
-          
-          <div className="space-y-4 text-sm">
-            <div className="flex justify-between items-center">
-              <span style={{ color: colors.textMuted }}>Severity:</span>
-              <span 
-                className="font-semibold capitalize px-4 py-1.5 rounded-full text-xs"
-                style={{ 
-                  color: selectedNode.color, 
-                  backgroundColor: `${selectedNode.color}20` 
-                }}
-              >
-                {selectedNode.severity || 'none'}
-              </span>
-            </div>
-            
-            <div className="flex justify-between items-center">
-              <span style={{ color: colors.textMuted }}>Token Cost:</span>
-              <span className="font-semibold text-cyan-400">
-                {selectedNode.tokenCost || 0}
-              </span>
-            </div>
-            
-            {selectedNode.duplicates !== undefined && (
-              <div className="flex justify-between items-center">
-                <span style={{ color: colors.textMuted }}>Issues:</span>
-                <span className="font-semibold text-purple-400">
-                  {selectedNode.duplicates}
-                </span>
-              </div>
-            )}
-          </div>
-          
-          {selectedNode.title && (
-            <div 
-              className="mt-6 pt-5 border-t" 
-              style={{ borderColor: colors.cardBorder }}
-            >
-              <h5 
-                className="text-sm font-bold mb-3" 
-                style={{ color: colors.textMuted }}
-              >
-                Details
-              </h5>
-              <pre 
-                className="text-xs whitespace-pre-wrap font-mono leading-relaxed"
-                style={{ color: colors.textMuted }}
-              >
-                {selectedNode.title}
-              </pre>
-            </div>
-          )}
-        </div>
-      ) : (
-        <p 
-          className="text-sm" 
-          style={{ color: colors.textMuted }}
-        >
-          Click a node to view details
-        </p>
-      )}
-    </div>
-  );
+  return <NodeDetails colors={colors} selectedNode={selectedNode} />;
 }

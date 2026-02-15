@@ -81,7 +81,7 @@ function App() {
 
         {/* Right panel: Legend + NodeDetails */}
         <div className="w-64 border-l flex flex-col overflow-hidden" style={{ backgroundColor: colors.panel, borderColor: colors.panelBorder }}>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto px-4">
             <LegendPanel colors={colors} />
           </div>
           {selectedNode && (

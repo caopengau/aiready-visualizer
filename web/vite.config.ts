@@ -17,8 +17,8 @@ export default defineConfig(({ command }) => {
       },
     },
     server: {
-      port: 3000,
-      open: true,
+      port: 8000,
+      open: false,
     },
     resolve: {
       alias: {
