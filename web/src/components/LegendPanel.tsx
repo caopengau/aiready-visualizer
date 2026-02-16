@@ -152,9 +152,9 @@ export function LegendPanel({
   onToggleSeverity,
   onToggleEdgeType 
 }: LegendPanelProps) {
-  // Get visible counts
+  // Get visible counts - exclude 'default' (No Issues) from count
   const visibleSeverityCount = visibleSeverities.size;
-  const totalSeverities = Object.keys(severityColors).length;
+  const totalSeverities = Object.keys(severityColors).length - 1; // -1 for 'default'
   const visibleEdgeCount = visibleEdgeTypes.size;
   const totalEdgeTypes = Object.keys(edgeColors).filter(k => k !== 'default' && k !== 'reference').length;
 
@@ -188,17 +188,19 @@ export function LegendPanel({
             </span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {Object.entries(severityColors).map(([key, color]) => (
-              <LegendItemWithToggle 
-                key={key}
-                color={color}
-                label={key === 'default' ? 'No Issues' : key.charAt(0).toUpperCase() + key.slice(1)}
-                isGlow={key !== 'default'}
-                colors={colors}
-                isVisible={visibleSeverities.has(key as SeverityLevel)}
-                onToggle={() => onToggleSeverity(key as SeverityLevel)}
-              />
-            ))}
+            {Object.entries(severityColors)
+              .filter(([key]) => key !== 'default') // Filter out "No Issues" - not useful for visualization
+              .map(([key, color]) => (
+                <LegendItemWithToggle 
+                  key={key}
+                  color={color}
+                  label={key.charAt(0).toUpperCase() + key.slice(1)}
+                  isGlow={key !== 'default'}
+                  colors={colors}
+                  isVisible={visibleSeverities.has(key as SeverityLevel)}
+                  onToggle={() => onToggleSeverity(key as SeverityLevel)}
+                />
+              ))}
           </div>
         </div>
 

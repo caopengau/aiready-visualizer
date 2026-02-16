@@ -23,7 +23,7 @@ export interface GraphData {
 }
 
 // Filter types
-export type SeverityLevel = 'critical' | 'major' | 'minor' | 'info' | 'default';
+export type SeverityLevel = 'critical' | 'major' | 'minor' | 'info';
 export type EdgeType = 'similarity' | 'dependency' | 'reference' | 'related';
 
 export interface FilterState {

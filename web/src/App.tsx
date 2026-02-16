@@ -14,7 +14,7 @@ import {
 } from './components';
 
 // All available severity levels
-const ALL_SEVERITIES: SeverityLevel[] = ['critical', 'major', 'minor', 'info', 'default'];
+const ALL_SEVERITIES: SeverityLevel[] = ['critical', 'major', 'minor', 'info'];
 
 // All available edge types (excluding 'default' and 'reference' as they're filtered out in UI)
 const ALL_EDGE_TYPES: EdgeType[] = ['similarity', 'dependency', 'related'];
