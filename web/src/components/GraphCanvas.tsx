@@ -26,7 +26,11 @@ export function GraphCanvas({
     if (!data || !svgRef.current || !data.nodes.length) return;
 
     const svg = d3.select(svgRef.current);
-    const { width, height } = dimensions;
+    
+    // Get actual SVG dimensions from the DOM element
+    const svgRect = svgRef.current.getBoundingClientRect();
+    const width = svgRect.width;
+    const height = svgRect.height;
 
     svg.selectAll('*').remove();
 
@@ -43,7 +47,16 @@ export function GraphCanvas({
     svg.call(zoom.transform, zoomTransformRef.current);
 
     // Prepare nodes and links
-    const nodes = data.nodes.map(d => ({ ...d }));
+    const nodes = data.nodes.map((d, i) => {
+      // Initialize nodes in a circle around center with slight random spread
+      const angle = (i / data.nodes.length) * Math.PI * 2;
+      const radius = 50 + Math.random() * 30;
+      return {
+        ...d,
+        x: width / 2 + Math.cos(angle) * radius,
+        y: height / 2 + Math.sin(angle) * radius,
+      };
+    });
     const links = data.edges.map(d => ({ ...d }));
 
     // Create force simulation

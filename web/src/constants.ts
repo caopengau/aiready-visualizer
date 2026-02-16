@@ -63,6 +63,6 @@ export const GRAPH_CONFIG = {
   },
   simulation: {
     chargeStrength: -200,
-    centerStrength: 0.05,
+    centerStrength: 0.1,
   },
 };
