@@ -162,11 +162,20 @@ function App() {
         </div>
 
         {/* Right panel: Legend OR NodeDetails */}
-        <div className="w-64 border-l flex flex-col overflow-hidden" style={{ backgroundColor: colors.panel, borderColor: colors.panelBorder }}>
-          <div className="flex-1 overflow-y-auto">
-            {selectedNode ? (
-              <NodeDetails colors={colors} selectedNode={selectedNode} onClose={() => setSelectedNode(null)} />
-            ) : (
+        <div 
+          className="w-64 border-l flex flex-col" 
+          style={{ backgroundColor: colors.panel, borderColor: colors.panelBorder }}
+        >
+          {selectedNode ? (
+            <div className="flex-1 overflow-y-auto">
+              <NodeDetails 
+                colors={colors} 
+                selectedNode={selectedNode} 
+                onClose={() => setSelectedNode(null)} 
+              />
+            </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto">
               <LegendPanel 
                 colors={colors}
                 visibleSeverities={visibleSeverities}
@@ -174,8 +183,8 @@ function App() {
                 onToggleSeverity={handleToggleSeverity}
                 onToggleEdgeType={handleToggleEdgeType}
               />
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
