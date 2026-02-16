@@ -49,7 +49,8 @@ export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps)
       style={{ 
         padding: '16px 16px',
         height: '100%',
-        overflow: 'auto',
+        overflowY: 'auto',
+        overflowX: 'hidden',
         animation: 'fadeIn 0.2s ease-in'
       }}
     >
@@ -163,7 +164,6 @@ export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps)
                 style={{ 
                   color: colors.textMuted,
                   backgroundColor: colors.panel,
-                  maxHeight: '150px',
                   overflow: 'auto'
                 }}
               >
