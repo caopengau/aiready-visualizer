@@ -103,9 +103,9 @@ export function Navbar({ colors, theme, setTheme, data }: NavbarProps) {
         </h1>
       </div>
 
-      <div className="flex items-center gap-5 relative z-10">
+      <div className="flex items-center gap-6 relative z-10">
         {/* Modern Theme Toggle */}
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border" style={{ borderColor: colors.panelBorder, backgroundColor: `${colors.panel}80` }}>
+        <div className="flex items-center rounded-lg border px-4 py-3" style={{ borderColor: colors.panelBorder, backgroundColor: `${colors.panel}80`, gap: '12px' }}>
           {[
             { key: 'dark', icon: MoonIcon, label: 'Dark' },
             { key: 'light', icon: SunIcon, label: 'Light' },
@@ -114,57 +114,50 @@ export function Navbar({ colors, theme, setTheme, data }: NavbarProps) {
             <button
               key={key}
               onClick={() => setTheme(key as Theme)}
-              className={`
-                group flex items-center gap-2 px-4 py-2 rounded-md text-xs font-medium
-                transition-all duration-200 ease-out
-                ${theme === key 
-                  ? 'shadow-sm' 
-                  : 'hover:bg-white/5'
-                }
-              `}
+              className="group flex items-center rounded-md text-xs font-medium transition-all duration-200"
               style={{
                 backgroundColor: theme === key ? colors.cardBg : 'transparent',
                 color: theme === key ? colors.text : colors.textMuted,
                 border: `1px solid ${theme === key ? colors.cardBorder : 'transparent'}`,
+                padding: '8px 16px',
+                gap: '8px',
               }}
               title={`Switch to ${label} theme`}
             >
               <Icon 
-                className={`
-                  transition-transform duration-200
-                  ${theme === key ? 'scale-110' : 'scale-100 group-hover:scale-110'}
-                `}
+                className="transition-transform duration-200"
+                style={{ transform: theme === key ? 'scale(1.1)' : 'scale(1)' }}
               />
-              <span className="hidden sm:inline">{label}</span>
+              <span>{label}</span>
             </button>
           ))}
         </div>
 
         {data && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center" style={{ gap: '12px' }}>
             <div 
-              className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2" 
+              className="rounded-lg border text-xs font-medium flex items-center"
               style={{ 
                 backgroundColor: `${colors.cardBg}cc`, 
-                borderColor: colors.cardBorder 
+                borderColor: colors.cardBorder,
+                padding: '8px 14px',
+                gap: '8px',
               }}
             >
-              <span 
-                className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" 
-              />
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
               <span style={{ color: colors.textMuted }}>Files</span>
               <span style={{ color: colors.text }}>{data.nodes.length}</span>
             </div>
             <div 
-              className="px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2" 
+              className="rounded-lg border text-xs font-medium flex items-center"
               style={{ 
                 backgroundColor: `${colors.cardBg}cc`, 
-                borderColor: colors.cardBorder 
+                borderColor: colors.cardBorder,
+                padding: '8px 14px',
+                gap: '8px',
               }}
             >
-              <span 
-                className="w-2 h-2 rounded-full bg-purple-400" 
-              />
+              <span className="w-2 h-2 rounded-full bg-purple-400" />
               <span style={{ color: colors.textMuted }}>Links</span>
               <span style={{ color: colors.text }}>{data.edges.length}</span>
             </div>
