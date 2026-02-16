@@ -5,146 +5,2944 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AIReady Visualization</title>
     <style>
-      html,body,#network { height: 100%; margin: 0; padding: 0 }
-      #sidebar { position: absolute; right: 0; top: 0; width: 320px; height: 100%; background: #fff; border-left: 1px solid #ddd; overflow:auto; }
-      #graph { position: absolute; left: 0; top: 0; right: 320px; bottom: 0; }
-      pre { white-space: pre-wrap; word-break: break-word }
+      html,body { height: 100%; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f172a; color: #e2e8f0 }
+      #container { display:flex; height:100vh }
+      #panel { width: 320px; padding: 16px; background: #071130; box-shadow: -2px 0 8px rgba(0,0,0,0.3); overflow:auto }
+      #canvasWrap { flex:1; display:flex; align-items:center; justify-content:center }
+      canvas { background: #0b1220; border-radius:8px }
+      .stat { margin-bottom:12px }
     </style>
-    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" />
-    <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
   </head>
   <body>
-    <div id="graph"><div id="network"></div></div>
-    <div id="sidebar">
-      <h3 style="margin:12px">Details</h3>
-      <div id="legend" style="padding:12px">
-        <h4 style="margin:8px 0">Legend</h4>
-        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px;color:#222">
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#ff4d4f;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Critical</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Files with critical issues (highest severity). These are high-priority hotspots that may block AI-assisted work or cause incorrect outputs.</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#ff9900;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Major</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Files with major issues requiring attention; likely to affect model performance or developer productivity.</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#ffd666;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Minor</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Files with minor issues or informational findings—worth fixing but lower priority.</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#91d5ff;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Info</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Informational notes or low-severity findings.</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#97c2fc;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Default</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Files with no recorded issues (default color).</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#fb7e81;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Similarity (edge)</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Semantic similarity or duplicate links between files.</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#84c1ff;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Dependency (edge)</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Static import relationships (actual code imports).</div>
-          </div>
-
-          <div>
-            <span style="display:inline-block;width:12px;height:12px;background:#ffa500;margin-right:8px;border:1px solid #ccc;vertical-align:middle"></span>
-            <strong>Reference (edge)</strong>
-            <div style="margin-left:20px;color:#555;font-size:12px">Explicit references discovered inside issue messages.</div>
-          </div>
-        </div>
-
-        <div style="margin-top:10px;font-size:12px;color:#444">
-          <div><strong>Node color</strong>: shows the highest-severity issue present on the file (Critical → Major → Minor → Info → Default).</div>
-          <div style="margin-top:6px"><strong>Node size</strong>: larger nodes indicate higher importance (token cost, number of issues, or dependency weight).</div>
-          <div style="margin-top:6px"><strong>Node distance / proximity</strong>: spatial closeness reflects contextual relatedness — similar or related files will be pulled closer during layout; we do not draw explicit 'related' edges to avoid clutter.</div>
-          <div style="margin-top:6px"><strong>Edge color & length</strong>: edge color shows relationship type (similarity/dependency/reference). Similarity edges are shorter to pull nodes together; dependency/reference edges are longer to show coupling.</div>
-          <div style="margin-top:6px;color:#666;font-size:11px">Interaction: click a node to view details; use the color and size cues to prioritize what to inspect first.</div>
+    <div id="container">
+      <div id="canvasWrap"><canvas id="canvas" width="1200" height="800"></canvas></div>
+      <div id="panel">
+        <h2>AIReady Visualization</h2>
+        <div class="stat"><strong>Files:</strong> <span id="stat-files"></span></div>
+        <div class="stat"><strong>Dependencies:</strong> <span id="stat-deps"></span></div>
+        <div class="stat"><strong>Legend</strong></div>
+        <div style="font-size:13px;line-height:1.3;color:#cbd5e1;margin-top:8px">
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ff4d4f;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Critical</strong>: highest severity issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ff9900;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Major</strong>: important issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#ffd666;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Minor</strong>: low priority issues.</div>
+          <div style="margin-bottom:8px"><span style="display:inline-block;width:12px;height:12px;background:#91d5ff;margin-right:8px;border:1px solid rgba(255,255,255,0.06)"></span><strong>Info</strong>: informational notes.</div>
+          <div style="margin-top:10px;color:#94a3b8"><strong>Node size</strong>: larger = higher token cost, more issues or dependency weight.</div>
+          <div style="margin-top:6px;color:#94a3b8"><strong>Proximity</strong>: nodes that are spatially close are more contextually related; relatedness is represented by distance and size rather than explicit edges.</div>
+          <div style="margin-top:6px;color:#94a3b8"><strong>Edge colors</strong>: <span style="color:#fb7e81">Similarity</span>, <span style="color:#84c1ff">Dependency</span>, <span style="color:#ffa500">Reference</span>, default <span style="color:#334155">Other</span>.</div>
         </div>
       </div>
-      <div id="details" style="padding:12px">Click a node to see details</div>
     </div>
 
     <script>
-      const data = {"nodes":[{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","label":"packages/context-analyzer/src/analyzer.ts","title":"Issues: 3\nReferenced file\nFuzzy match\nSimilarity target\nDeps: 3\nRelated file","value":755,"color":"#ffd666","duplicates":3},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts","label":"packages/context-analyzer/src/analyzers/python-context.ts","title":"Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 3","value":360,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts","label":"packages/context-analyzer/src/index.ts","title":"Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nDependency\nDeps: 2\nRelated file","value":201,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts","label":"packages/pattern-detect/src/extractors/python-extractor.ts","title":"Referenced file\nIssues: 2\nSimilarity target\nRelated file\nDeps: 2","value":971,"color":"#ffd666","duplicates":2},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts","label":"packages/consistency/src/analyzers/naming-python.ts","title":"Referenced file\nIssues: 1\nSimilarity target\nRelated file\nDeps: 2","value":759,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/landing/api/request-report.ts","label":"landing/api/request-report.ts","title":"Issues: 1\nReferenced file\nFuzzy match\nSimilarity target\nRelated file\nDeps: 2","value":118,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/landing/api/scan.ts","label":"landing/api/scan.ts","title":"Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 1","value":204,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts","label":"packages/consistency/src/utils/ast-parser.ts","title":"Issues: 1\nReferenced file\nSimilarity target\nRelated file\nDependency\nDeps: 2","value":281,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts","label":"packages/core/src/utils/ast-parser.ts","title":"Referenced file\nIssues: 1\nSimilarity target\nRelated file\nDeps: 1","value":281,"color":"#ffd666","duplicates":1},{"id":"/Users/pengcao/projects/aiready/landing/app/blog/[slug]/page.tsx","label":"landing/app/blog/[slug]/page.tsx","title":"Issues: 0\nDeps: 6\nRelated file","value":14,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/blog/page.tsx","label":"landing/app/blog/page.tsx","title":"Issues: 0\nRelated file\nDeps: 6","value":12,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/docs/layout.tsx","label":"landing/app/docs/layout.tsx","title":"Issues: 0\nRelated file\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/docs/page.tsx","label":"landing/app/docs/page.tsx","title":"Issues: 0\nDeps: 8\nRelated file","value":96,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/layout.tsx","label":"landing/app/layout.tsx","title":"Issues: 0\nRelated file\nDeps: 4","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/page.tsx","label":"landing/app/page.tsx","title":"Issues: 0\nRelated file\nDeps: 19","value":13,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/robots.ts","label":"landing/app/robots.ts","title":"Issues: 0\nRelated file\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/sitemap.ts","label":"landing/app/sitemap.ts","title":"Issues: 0\nRelated file\nDeps: 2","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx","label":"landing/components/AgentPrompt.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/AIOptimizedContent.tsx","label":"landing/components/AIOptimizedContent.tsx","title":"Issues: 0\nDependency","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx","label":"landing/components/AIReadinessScore.tsx","title":"Issues: 0\nDeps: 2\nRelated file\nDependency","value":18,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx","label":"landing/components/AnimatedHero.tsx","title":"Issues: 0\nRelated file\nDeps: 3\nDependency","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx","label":"landing/components/AnimatedStats.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Benefits.tsx","label":"landing/components/Benefits.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 3","value":95,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/BlogContent.tsx","label":"landing/components/BlogContent.tsx","title":"Issues: 0\nRelated file\nDeps: 2","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/BlogPageClient.tsx","label":"landing/components/BlogPageClient.tsx","title":"Issues: 0\nRelated file\nDeps: 2","value":16,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","label":"landing/components/BlogPostClient.tsx","title":"Issues: 0\nDeps: 7\nRelated file","value":18,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Breadcrumb.tsx","label":"landing/components/Breadcrumb.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 3","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx","label":"landing/components/ChartsClient.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx","label":"landing/components/CodeBlock.tsx","title":"Issues: 0\nDependency\nRelated file\nDeps: 7","value":14,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/CodeBlockCopyButton.tsx","label":"landing/components/CodeBlockCopyButton.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Comments.tsx","label":"landing/components/Comments.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/ComparisonChart.tsx","label":"landing/components/ComparisonChart.tsx","title":"Issues: 0\nRelated file\nDeps: 3","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/CTA.tsx","label":"landing/components/CTA.tsx","title":"Issues: 0\nRelated file\nDeps: 4\nDependency","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/FAQ.tsx","label":"landing/components/FAQ.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 3","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Features.tsx","label":"landing/components/Features.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 3","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/FloatingElements.tsx","label":"landing/components/FloatingElements.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Footer.tsx","label":"landing/components/Footer.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Header.tsx","label":"landing/components/Header.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 3","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/InteractiveChart.tsx","label":"landing/components/InteractiveChart.tsx","title":"Issues: 0\nRelated file\nDeps: 3","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/LiveScanDemo.tsx","label":"landing/components/LiveScanDemo.tsx","title":"Issues: 0\nRelated file\nDeps: 2\nDependency","value":100,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/MotionProgress.tsx","label":"landing/components/MotionProgress.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx","label":"landing/components/NotAnotherLinter.tsx","title":"Issues: 0\nRelated file\nDeps: 2\nDependency","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","label":"landing/components/ParallaxSection.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/RequestForm.tsx","label":"landing/components/RequestForm.tsx","title":"Issues: 0\nRelated file\nDeps: 2\nDependency","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx","label":"landing/components/Testimonials.tsx","title":"Issues: 0\nRelated file\nDependency\nDeps: 2","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/ToolShowcase.tsx","label":"landing/components/ToolShowcase.tsx","title":"Issues: 0\nRelated file\nDeps: 3\nDependency","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts","label":"landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.tsx","label":"landing/content/blog-tsx/ai-code-debt-tsunami.tsx","title":"Issues: 0\nDependency","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/context-window-crisis.tsx","label":"landing/content/blog-tsx/context-window-crisis.tsx","title":"Issues: 0\nRelated file\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","label":"landing/content/blog-tsx/index.ts","title":"Issues: 0\nRelated file\nDeps: 8\nDependency","value":91,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts","label":"landing/content/blog-tsx/invisible-codebase.meta.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx","label":"landing/content/blog-tsx/invisible-codebase.tsx","title":"Issues: 0\nRelated file\nDeps: 3\nDependency","value":100,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.meta.ts","label":"landing/content/blog-tsx/metrics-that-actually-matter.meta.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.tsx","label":"landing/content/blog-tsx/metrics-that-actually-matter.tsx","title":"Issues: 0\nDependency","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts","label":"landing/content/blog-tsx/semantic-duplicate-detection.meta.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx","label":"landing/content/blog-tsx/semantic-duplicate-detection.tsx","title":"Issues: 0\nRelated file\nDeps: 4\nDependency","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/global.d.ts","label":"landing/global.d.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/lib/aeo-schema.ts","label":"landing/lib/aeo-schema.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/lib/blog-tsx.ts","label":"landing/lib/blog-tsx.ts","title":"Issues: 0\nDeps: 2","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/lib/blog.ts","label":"landing/lib/blog.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/lib/seo.ts","label":"landing/lib/seo.ts","title":"Issues: 0\nDependency\nDeps: 0\nRelated file","value":14,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/next-env.d.ts","label":"landing/next-env.d.ts","title":"Issues: 0\nRelated file\nDeps: 1","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/next.config.ts","label":"landing/next.config.ts","title":"Issues: 0\nRelated file\nDeps: 1","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/scripts/post-build.js","label":"landing/scripts/post-build.js","title":"Issues: 0\nRelated file\nDeps: 2","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/sst-env.d.ts","label":"landing/sst-env.d.ts","title":"Issues: 0\nRelated file\nDeps: 1","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/sst.config.ts","label":"landing/sst.config.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/types/marked.d.ts","label":"landing/types/marked.d.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/cli/src/cli.ts","label":"packages/cli/src/cli.ts","title":"Issues: 0\nDeps: 5\nRelated file","value":40,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/cli/src/index.ts","label":"packages/cli/src/index.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 4","value":23,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzer.ts","label":"packages/consistency/src/analyzer.ts","title":"Issues: 0\nDependency\nRelated file","value":7,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts","label":"packages/consistency/src/analyzers/naming-ast.ts","title":"Issues: 0\nDeps: 4\nRelated file","value":24,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-constants.ts","label":"packages/consistency/src/analyzers/naming-constants.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts","label":"packages/consistency/src/analyzers/naming.ts","title":"Issues: 0\nRelated file\nDeps: 3","value":23,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/patterns.ts","label":"packages/consistency/src/analyzers/patterns.ts","title":"Issues: 0\nRelated file\nDeps: 3","value":23,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts","label":"packages/consistency/src/cli.ts","title":"Issues: 0\nRelated file\nDeps: 7","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/index.ts","label":"packages/consistency/src/index.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/scoring.ts","label":"packages/consistency/src/scoring.ts","title":"Issues: 0\nRelated file\nDeps: 2","value":13,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","label":"packages/consistency/src/types.ts","title":"Issues: 0\nDependency\nDeps: 1","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts","label":"packages/consistency/src/utils/config-loader.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 2","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/context-detector.ts","label":"packages/consistency/src/utils/context-detector.ts","title":"Issues: 0\nRelated file\nDeps: 2","value":19,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/scope-tracker.ts","label":"packages/consistency/src/utils/scope-tracker.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 1","value":21,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/cli.ts","label":"packages/context-analyzer/src/cli.ts","title":"Issues: 0\nRelated file\nDeps: 7","value":36,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts","label":"packages/context-analyzer/src/scoring.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 2","value":16,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts","label":"packages/context-analyzer/src/semantic-analysis.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 1","value":24,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts","label":"packages/context-analyzer/src/types.ts","title":"Issues: 0\nDependency\nDeps: 1","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.ts","label":"packages/core/examples/multi-language-parsing.ts","title":"Issues: 0\nRelated file\nDeps: 1","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/examples/python-demo/models.py","label":"packages/core/examples/python-demo/models.py","title":"Issues: 0","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/examples/python-demo/order_service.py","label":"packages/core/examples/python-demo/order_service.py","title":"Issues: 0","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/examples/python-demo/user_service.py","label":"packages/core/examples/python-demo/user_service.py","title":"Issues: 0","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/examples/python-demo/utils.py","label":"packages/core/examples/python-demo/utils.py","title":"Issues: 0","value":5,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/index.ts","label":"packages/core/src/index.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts","label":"packages/core/src/parsers/parser-factory.ts","title":"Issues: 0\nDeps: 2","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/parsers/python-parser.ts","label":"packages/core/src/parsers/python-parser.ts","title":"Issues: 0\nRelated file\nDependency","value":7,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/parsers/typescript-parser.ts","label":"packages/core/src/parsers/typescript-parser.ts","title":"Issues: 0\nRelated file\nDeps: 1\nDependency","value":21,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/scoring.ts","label":"packages/core/src/scoring.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/types.ts","label":"packages/core/src/types.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/types/language.ts","label":"packages/core/src/types/language.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/utils/cli-helpers.ts","label":"packages/core/src/utils/cli-helpers.ts","title":"Issues: 0\nRelated file\nDeps: 3","value":13,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts","label":"packages/core/src/utils/config.ts","title":"Issues: 0\nRelated file\nDeps: 4","value":12,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/utils/file-scanner.ts","label":"packages/core/src/utils/file-scanner.ts","title":"Issues: 0\nRelated file\nDeps: 5","value":21,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/utils/metrics.ts","label":"packages/core/src/utils/metrics.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts","label":"packages/pattern-detect/src/cli.ts","title":"Issues: 0\nRelated file\nDeps: 8","value":38,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts","label":"packages/pattern-detect/src/context-rules.ts","title":"Issues: 0\nRelated file\nDependency\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","label":"packages/pattern-detect/src/detector.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 2","value":24,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts","label":"packages/pattern-detect/src/grouping.ts","title":"Issues: 0\nRelated file\nDeps: 2","value":97,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts","label":"packages/pattern-detect/src/index.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 4","value":23,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts","label":"packages/pattern-detect/src/scoring.ts","title":"Issues: 0\nDependency\nRelated file\nDeps: 2","value":13,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/skills/src/build.ts","label":"packages/skills/src/build.ts","title":"Issues: 0\nRelated file\nDeps: 5","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/skills/src/config.ts","label":"packages/skills/src/config.ts","title":"Issues: 0\nDeps: 2","value":10,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/skills/src/parser.ts","label":"packages/skills/src/parser.ts","title":"Issues: 0\nRelated file\nDeps: 3","value":21,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/skills/src/types.ts","label":"packages/skills/src/types.ts","title":"Issues: 0\nRelated file\nDeps: 0","value":99,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/skills/src/validate.ts","label":"packages/skills/src/validate.ts","title":"Issues: 0\nRelated file\nDeps: 4","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/scripts/consume-aiready-reports.js","label":"scripts/consume-aiready-reports.js","title":"Issues: 0\nRelated file\nDeps: 2","value":35,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.module.css","label":"landing/components/BlogPostClient.module.css","title":"Dependency","value":2,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/app/globals.css","label":"landing/app/globals.css","title":"Dependency","value":2,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/packages/core/src/types","label":"packages/core/src/types","title":"Dependency","value":2,"color":"#97c2fc","duplicates":0},{"id":"/Users/pengcao/projects/aiready/landing/.next/types/routes.d.ts","label":"landing/.next/types/routes.d.ts","title":"Dependency","value":2,"color":"#97c2fc","duplicates":0}],"edges":[{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/landing/api/request-report.ts","to":"/Users/pengcao/projects/aiready/landing/api/scan.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/landing/api/scan.ts","to":"/Users/pengcao/projects/aiready/landing/api/request-report.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts","type":"reference"},{"from":"/Users/pengcao/projects/aiready/packages/cli/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/cli/src/index.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/docs/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Breadcrumb.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/docs/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Header.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/docs/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Footer.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/docs/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx","to":"/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx","to":"/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/scope-tracker.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzer.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/MotionProgress.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Header.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Footer.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Comments.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/BlogPostClient.module.css","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/context-detector.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/patterns.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/layout.tsx","to":"/Users/pengcao/projects/aiready/landing/app/globals.css","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/CTA.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/CTA.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts","to":"/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx","to":"/Users/pengcao/projects/aiready/landing/components/CodeBlockCopyButton.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts","to":"/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/consistency/src/scoring.ts","to":"/Users/pengcao/projects/aiready/packages/consistency/src/types.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Benefits.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/FloatingElements.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/RequestForm.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/LiveScanDemo.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Header.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Features.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/CTA.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/FAQ.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/Footer.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AIOptimizedContent.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/app/page.tsx","to":"/Users/pengcao/projects/aiready/landing/lib/seo.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/FAQ.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/parsers/typescript-parser.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/parsers/python-parser.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/utils/file-scanner.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/types","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/types","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/packages/core/src/utils/cli-helpers.ts","to":"/Users/pengcao/projects/aiready/packages/core/src/index.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/Benefits.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/Benefits.tsx","to":"/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/Features.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/Features.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ToolShowcase.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx","to":"/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/lib/blog-tsx.ts","to":"/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts","type":"dependency"},{"from":"/Users/pengcao/projects/aiready/landing/next-env.d.ts","to":"/Users/pengcao/projects/aiready/landing/.next/types/routes.d.ts","type":"dependency"}]};
-      const nodes = new vis.DataSet(data.nodes.map(n => ({ id: n.id, label: n.label, title: n.title, value: n.value || n.size, color: n.color })));
+      const graphData = {
+  "nodes": [
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.js",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.js",
+      "label": "packages/core/examples/multi-language-parsing.js",
+      "title": "Issues: 2\nReferenced file\nFuzzy match\nSimilarity target\nRelated file\nDeps: 1",
+      "size": 377,
+      "duplicates": 2,
+      "color": "#ff4d4f",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.ts",
+      "label": "packages/core/examples/multi-language-parsing.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 2\nSimilarity target\nRelated file\nDeps: 1",
+      "size": 377,
+      "duplicates": 2,
+      "color": "#ff4d4f",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "label": "packages/visualizer/src/cli.ts",
+      "title": "Issues: 2\nReferenced file\nFuzzy match\nSimilarity target\nRelated file\nDeps: 4",
+      "size": 4269,
+      "duplicates": 2,
+      "color": "#ff4d4f",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/cli/src/cli.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/cli/src/cli.ts",
+      "label": "packages/cli/src/cli.ts",
+      "title": "Referenced file\nIssues: 1\nSimilarity target\nDeps: 7\nRelated file",
+      "size": 4009,
+      "duplicates": 1,
+      "color": "#ff4d4f",
+      "group": "packages/cli"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/builder.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/builder.ts",
+      "label": "packages/visualizer/src/graph/builder.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 2\nDependency",
+      "size": 272,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "label": "packages/visualizer/web/vite.config.js",
+      "title": "Issues: 1\nReferenced file\nFuzzy match\nSimilarity target\nRelated file\nDeps: 3",
+      "size": 483,
+      "duplicates": 1,
+      "color": "#ff4d4f",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.ts",
+      "label": "packages/visualizer/web/vite.config.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 4",
+      "size": 483,
+      "duplicates": 1,
+      "color": "#ff4d4f",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts",
+      "label": "packages/core/src/utils/config.ts",
+      "title": "Fuzzy match\nIssues: 0\nRelated file\nDeps: 4",
+      "size": 12,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/skills/src/config.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/skills/src/config.ts",
+      "label": "packages/skills/src/config.ts",
+      "title": "Fuzzy match\nIssues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/skills",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "label": "packages/components/src/components/container.tsx",
+      "title": "Issues: 3\nFuzzy match\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 1088,
+      "duplicates": 3,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.ts",
+      "label": "packages/components/src/components/grid.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "label": "packages/components/src/components/grid.tsx",
+      "title": "Fuzzy match\nIssues: 2\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 936,
+      "duplicates": 2,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.ts",
+      "label": "packages/components/src/components/stack.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "label": "packages/components/src/components/stack.tsx",
+      "title": "Fuzzy match\nIssues: 2\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 975,
+      "duplicates": 2,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.ts",
+      "label": "packages/components/src/components/textarea.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "label": "packages/components/src/components/textarea.tsx",
+      "title": "Fuzzy match\nIssues: 2\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 647,
+      "duplicates": 2,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "label": "packages/context-analyzer/src/analyzer.ts",
+      "title": "Issues: 3\nReferenced file\nFuzzy match\nSimilarity target\nDeps: 3\nRelated file",
+      "size": 755,
+      "duplicates": 3,
+      "color": "#ffd666",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts",
+      "label": "packages/context-analyzer/src/analyzers/python-context.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 3",
+      "size": 360,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "label": "packages/context-analyzer/src/index.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nDependency\nDeps: 2\nRelated file",
+      "size": 201,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "label": "packages/pattern-detect/src/extractors/python-extractor.ts",
+      "title": "Referenced file\nIssues: 2\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 971,
+      "duplicates": 2,
+      "color": "#ffd666",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/container.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/container.ts",
+      "label": "packages/components/src/components/container.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/input.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/input.ts",
+      "label": "packages/components/src/components/input.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "label": "packages/components/src/components/input.tsx",
+      "title": "Fuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 406,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts",
+      "label": "packages/consistency/src/analyzers/naming-python.ts",
+      "title": "Referenced file\nIssues: 1\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 757,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/api/request-report.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/api/request-report.ts",
+      "label": "landing/api/request-report.ts",
+      "title": "Issues: 1\nReferenced file\nFuzzy match\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 118,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/api/scan.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/api/scan.ts",
+      "label": "landing/api/scan.ts",
+      "title": "Referenced file\nFuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 1",
+      "size": 258,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "label": "packages/components/src/components/checkbox.tsx",
+      "title": "Issues: 1\nFuzzy match\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 687,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.ts",
+      "label": "packages/components/src/components/switch.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "label": "packages/components/src/components/switch.tsx",
+      "title": "Fuzzy match\nIssues: 1\nSimilarity target\nRelated file\nDeps: 2",
+      "size": 687,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.ts",
+      "label": "packages/components/src/components/checkbox.ts",
+      "title": "Referenced file",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts",
+      "label": "packages/consistency/src/utils/ast-parser.ts",
+      "title": "Issues: 1\nReferenced file\nSimilarity target\nRelated file\nDependency\nDeps: 2",
+      "size": 299,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts",
+      "label": "packages/core/src/utils/ast-parser.ts",
+      "title": "Referenced file\nIssues: 1\nSimilarity target\nRelated file\nDeps: 1",
+      "size": 299,
+      "duplicates": 1,
+      "color": "#ffd666",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/blog/[slug]/page.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/blog/[slug]/page.tsx",
+      "label": "landing/app/blog/[slug]/page.tsx",
+      "title": "Issues: 0\nDeps: 6\nRelated file",
+      "size": 14,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/blog/page.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/blog/page.tsx",
+      "label": "landing/app/blog/page.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 6",
+      "size": 12,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/docs/layout.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/docs/layout.tsx",
+      "label": "landing/app/docs/layout.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "label": "landing/app/docs/page.tsx",
+      "title": "Issues: 0\nDeps: 8\nRelated file",
+      "size": 150,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/layout.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/layout.tsx",
+      "label": "landing/app/layout.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 4",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "label": "landing/app/page.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 19",
+      "size": 13,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/robots.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/app/robots.ts",
+      "label": "landing/app/robots.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/sitemap.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/app/sitemap.ts",
+      "label": "landing/app/sitemap.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx",
+      "label": "landing/components/AgentPrompt.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/AIOptimizedContent.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/AIOptimizedContent.tsx",
+      "label": "landing/components/AIOptimizedContent.tsx",
+      "title": "Issues: 0\nDependency",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx",
+      "label": "landing/components/AIReadinessScore.tsx",
+      "title": "Issues: 0\nDeps: 2\nRelated file\nDependency",
+      "size": 18,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx",
+      "label": "landing/components/AnimatedHero.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 3\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx",
+      "label": "landing/components/AnimatedStats.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Benefits.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Benefits.tsx",
+      "label": "landing/components/Benefits.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 3",
+      "size": 149,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/BlogContent.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/BlogContent.tsx",
+      "label": "landing/components/BlogContent.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/BlogPageClient.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/BlogPageClient.tsx",
+      "label": "landing/components/BlogPageClient.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 16,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "label": "landing/components/BlogPostClient.tsx",
+      "title": "Issues: 0\nDeps: 7\nRelated file",
+      "size": 18,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Breadcrumb.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Breadcrumb.tsx",
+      "label": "landing/components/Breadcrumb.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 3",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx",
+      "label": "landing/components/ChartsClient.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "label": "landing/components/CodeBlock.tsx",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 7",
+      "size": 14,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/CodeBlockCopyButton.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/CodeBlockCopyButton.tsx",
+      "label": "landing/components/CodeBlockCopyButton.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Comments.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Comments.tsx",
+      "label": "landing/components/Comments.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/ComparisonChart.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/ComparisonChart.tsx",
+      "label": "landing/components/ComparisonChart.tsx",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/CTA.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/CTA.tsx",
+      "label": "landing/components/CTA.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 4\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/FAQ.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/FAQ.tsx",
+      "label": "landing/components/FAQ.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 3\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Features.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Features.tsx",
+      "label": "landing/components/Features.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 3",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/FloatingElements.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/FloatingElements.tsx",
+      "label": "landing/components/FloatingElements.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Footer.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Footer.tsx",
+      "label": "landing/components/Footer.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Header.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Header.tsx",
+      "label": "landing/components/Header.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 3",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/InteractiveChart.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/InteractiveChart.tsx",
+      "label": "landing/components/InteractiveChart.tsx",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/LiveScanDemo.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/LiveScanDemo.tsx",
+      "label": "landing/components/LiveScanDemo.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2\nDependency",
+      "size": 154,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/MotionProgress.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/MotionProgress.tsx",
+      "label": "landing/components/MotionProgress.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx",
+      "label": "landing/components/NotAnotherLinter.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "label": "landing/components/ParallaxSection.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/RequestForm.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/RequestForm.tsx",
+      "label": "landing/components/RequestForm.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2\nDependency",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx",
+      "label": "landing/components/Testimonials.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/ToolShowcase.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/components/ToolShowcase.tsx",
+      "label": "landing/components/ToolShowcase.tsx",
+      "title": "Issues: 0\nDependency",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts",
+      "label": "landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.tsx",
+      "label": "landing/content/blog-tsx/ai-code-debt-tsunami.tsx",
+      "title": "Issues: 0\nDependency",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/context-window-crisis.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/context-window-crisis.tsx",
+      "label": "landing/content/blog-tsx/context-window-crisis.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.meta.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.meta.ts",
+      "label": "landing/content/blog-tsx/hidden-cost-import-chains.meta.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "label": "landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 11\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "label": "landing/content/blog-tsx/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 10\nDependency",
+      "size": 143,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts",
+      "label": "landing/content/blog-tsx/invisible-codebase.meta.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx",
+      "label": "landing/content/blog-tsx/invisible-codebase.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 3\nDependency",
+      "size": 154,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.meta.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.meta.ts",
+      "label": "landing/content/blog-tsx/metrics-that-actually-matter.meta.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.tsx",
+      "label": "landing/content/blog-tsx/metrics-that-actually-matter.tsx",
+      "title": "Issues: 0\nDependency",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts",
+      "label": "landing/content/blog-tsx/semantic-duplicate-detection.meta.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "path": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "label": "landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 4\nDependency",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/global.d.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/global.d.ts",
+      "label": "landing/global.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/lib/aeo-schema.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/lib/aeo-schema.ts",
+      "label": "landing/lib/aeo-schema.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/lib/blog-tsx.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/lib/blog-tsx.ts",
+      "label": "landing/lib/blog-tsx.ts",
+      "title": "Issues: 0\nDeps: 2",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/lib/blog.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/lib/blog.ts",
+      "label": "landing/lib/blog.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/lib/seo.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/lib/seo.ts",
+      "label": "landing/lib/seo.ts",
+      "title": "Issues: 0\nDependency\nDeps: 0\nRelated file",
+      "size": 14,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/next-env.d.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/next-env.d.ts",
+      "label": "landing/next-env.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/next.config.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/next.config.ts",
+      "label": "landing/next.config.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/scripts/post-build.js",
+      "path": "/Users/pengcao/projects/aiready/landing/scripts/post-build.js",
+      "label": "landing/scripts/post-build.js",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/sst-env.d.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/sst-env.d.ts",
+      "label": "landing/sst-env.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/sst.config.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/sst.config.ts",
+      "label": "landing/sst.config.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/types/marked.d.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/types/marked.d.ts",
+      "label": "landing/types/marked.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "landing"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/cli/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/cli/src/index.ts",
+      "label": "packages/cli/src/index.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 4",
+      "size": 21,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/cli"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "label": "packages/components/src/charts/ForceDirectedGraph.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 5\nDependency",
+      "size": 16,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/charts/GraphControls.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/charts/GraphControls.tsx",
+      "label": "packages/components/src/charts/GraphControls.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 17,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/charts/LinkItem.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/charts/LinkItem.tsx",
+      "label": "packages/components/src/charts/LinkItem.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 17,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/charts/NodeItem.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/charts/NodeItem.tsx",
+      "label": "packages/components/src/charts/NodeItem.tsx",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 17,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/badge.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/badge.tsx",
+      "label": "packages/components/src/components/badge.tsx",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/button.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/button.tsx",
+      "label": "packages/components/src/components/button.tsx",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/card.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/card.tsx",
+      "label": "packages/components/src/components/card.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/label.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/label.tsx",
+      "label": "packages/components/src/components/label.tsx",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/components",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/radio-group.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/radio-group.tsx",
+      "label": "packages/components/src/components/radio-group.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/select.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/select.tsx",
+      "label": "packages/components/src/components/select.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/components/separator.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/components/separator.tsx",
+      "label": "packages/components/src/components/separator.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useD3.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useD3.ts",
+      "label": "packages/components/src/hooks/useD3.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useDebounce.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useDebounce.ts",
+      "label": "packages/components/src/hooks/useDebounce.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useForceSimulation.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/hooks/useForceSimulation.ts",
+      "label": "packages/components/src/hooks/useForceSimulation.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/index.ts",
+      "label": "packages/components/src/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "label": "packages/components/src/utils/cn.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/utils/colors.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/utils/colors.ts",
+      "label": "packages/components/src/utils/colors.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/src/utils/formatters.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/src/utils/formatters.ts",
+      "label": "packages/components/src/utils/formatters.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/tailwind.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/components/tailwind.config.js",
+      "label": "packages/components/tailwind.config.js",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/tsup.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/components/tsup.config.js",
+      "label": "packages/components/tsup.config.js",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/components/tsup.config.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/components/tsup.config.ts",
+      "label": "packages/components/tsup.config.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/components"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzer.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzer.ts",
+      "label": "packages/consistency/src/analyzer.ts",
+      "title": "Issues: 0\nDependency\nRelated file",
+      "size": 7,
+      "color": "#97c2fc",
+      "group": "packages/consistency",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts",
+      "label": "packages/consistency/src/analyzers/naming-ast.ts",
+      "title": "Issues: 0\nDeps: 4\nRelated file",
+      "size": 42,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-constants.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-constants.ts",
+      "label": "packages/consistency/src/analyzers/naming-constants.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts",
+      "label": "packages/consistency/src/analyzers/naming.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 3",
+      "size": 22,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/patterns.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/patterns.ts",
+      "label": "packages/consistency/src/analyzers/patterns.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 3",
+      "size": 21,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts",
+      "label": "packages/consistency/src/cli.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 7",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/index.ts",
+      "label": "packages/consistency/src/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/scoring.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/scoring.ts",
+      "label": "packages/consistency/src/scoring.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 13,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "label": "packages/consistency/src/types.ts",
+      "title": "Issues: 0\nDependency\nDeps: 1",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts",
+      "label": "packages/consistency/src/utils/config-loader.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 2",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/context-detector.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/context-detector.ts",
+      "label": "packages/consistency/src/utils/context-detector.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 37,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/scope-tracker.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/scope-tracker.ts",
+      "label": "packages/consistency/src/utils/scope-tracker.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/consistency"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/cli.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/cli.ts",
+      "label": "packages/context-analyzer/src/cli.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 7",
+      "size": 66,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts",
+      "label": "packages/context-analyzer/src/scoring.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 2",
+      "size": 16,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts",
+      "label": "packages/context-analyzer/src/semantic-analysis.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 1",
+      "size": 42,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts",
+      "label": "packages/context-analyzer/src/types.ts",
+      "title": "Issues: 0\nDependency\nDeps: 1",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/context-analyzer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/models.py",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/models.py",
+      "label": "packages/core/examples/python-demo/models.py",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/order_service.py",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/order_service.py",
+      "label": "packages/core/examples/python-demo/order_service.py",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/user_service.py",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/user_service.py",
+      "label": "packages/core/examples/python-demo/user_service.py",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/utils.py",
+      "path": "/Users/pengcao/projects/aiready/packages/core/examples/python-demo/utils.py",
+      "label": "packages/core/examples/python-demo/utils.py",
+      "title": "Issues: 0",
+      "size": 5,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/index.ts",
+      "label": "packages/core/src/index.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts",
+      "label": "packages/core/src/parsers/parser-factory.ts",
+      "title": "Issues: 0\nDeps: 2",
+      "size": 10,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/parsers/python-parser.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/parsers/python-parser.ts",
+      "label": "packages/core/src/parsers/python-parser.ts",
+      "title": "Issues: 0\nRelated file\nDependency",
+      "size": 7,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/parsers/typescript-parser.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/parsers/typescript-parser.ts",
+      "label": "packages/core/src/parsers/typescript-parser.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1\nDependency",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/scoring.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/scoring.ts",
+      "label": "packages/core/src/scoring.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/types.ts",
+      "label": "packages/core/src/types.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/types/language.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/types/language.ts",
+      "label": "packages/core/src/types/language.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/utils/cli-helpers.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/utils/cli-helpers.ts",
+      "label": "packages/core/src/utils/cli-helpers.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 3",
+      "size": 13,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/utils/file-scanner.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/utils/file-scanner.ts",
+      "label": "packages/core/src/utils/file-scanner.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 5",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/utils/metrics.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/utils/metrics.ts",
+      "label": "packages/core/src/utils/metrics.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/core"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts",
+      "label": "packages/pattern-detect/src/cli.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 8",
+      "size": 68,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "label": "packages/pattern-detect/src/context-rules.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "label": "packages/pattern-detect/src/detector.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 2",
+      "size": 24,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts",
+      "label": "packages/pattern-detect/src/grouping.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 151,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "label": "packages/pattern-detect/src/index.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 4",
+      "size": 21,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts",
+      "label": "packages/pattern-detect/src/scoring.ts",
+      "title": "Issues: 0\nDependency\nRelated file\nDeps: 2",
+      "size": 13,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/pattern-detect"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/skills/src/build.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/skills/src/build.ts",
+      "label": "packages/skills/src/build.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 5",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/skills"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/skills/src/parser.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/skills/src/parser.ts",
+      "label": "packages/skills/src/parser.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 3",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/skills"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/skills/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/skills/src/types.ts",
+      "label": "packages/skills/src/types.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/skills"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/skills/src/validate.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/skills/src/validate.ts",
+      "label": "packages/skills/src/validate.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 4",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/skills"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/scripts/preview-graph.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/scripts/preview-graph.js",
+      "label": "packages/visualizer/scripts/preview-graph.js",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/scripts/watch-report.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/scripts/watch-report.js",
+      "label": "packages/visualizer/scripts/watch-report.js",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli/index.ts",
+      "label": "packages/visualizer/src/cli/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/index.ts",
+      "label": "packages/visualizer/src/graph/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/index.ts",
+      "label": "packages/visualizer/src/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/src/types.ts",
+      "label": "packages/visualizer/src/types.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/tsup.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/tsup.config.js",
+      "label": "packages/visualizer/tsup.config.js",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/tsup.config.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/tsup.config.ts",
+      "label": "packages/visualizer/tsup.config.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/postcss.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/postcss.config.js",
+      "label": "packages/visualizer/web/postcss.config.js",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "label": "packages/visualizer/web/src/App.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 6\nDependency",
+      "size": 35,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/ErrorDisplay.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/ErrorDisplay.tsx",
+      "label": "packages/visualizer/web/src/components/ErrorDisplay.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "label": "packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 5",
+      "size": 17,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/index.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/index.ts",
+      "label": "packages/visualizer/web/src/components/index.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LegendPanel.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LegendPanel.tsx",
+      "label": "packages/visualizer/web/src/components/LegendPanel.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 37,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LoadingSpinner.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LoadingSpinner.tsx",
+      "label": "packages/visualizer/web/src/components/LoadingSpinner.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/Navbar.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/Navbar.tsx",
+      "label": "packages/visualizer/web/src/components/Navbar.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/NodeDetails.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/NodeDetails.tsx",
+      "label": "packages/visualizer/web/src/components/NodeDetails.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "label": "packages/visualizer/web/src/constants.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/css.d.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/css.d.ts",
+      "label": "packages/visualizer/web/src/css.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useDimensions.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useDimensions.ts",
+      "label": "packages/visualizer/web/src/hooks/useDimensions.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 1",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useTheme.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useTheme.ts",
+      "label": "packages/visualizer/web/src/hooks/useTheme.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 2",
+      "size": 39,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/main.tsx",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/main.tsx",
+      "label": "packages/visualizer/web/src/main.tsx",
+      "title": "Issues: 0\nRelated file\nDeps: 4",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "label": "packages/visualizer/web/src/types.ts",
+      "title": "Issues: 0\nRelated file\nDependency\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils.ts",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils.ts",
+      "label": "packages/visualizer/web/src/utils.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 37,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/tailwind.config.js",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/tailwind.config.js",
+      "label": "packages/visualizer/web/tailwind.config.js",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 153,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "packages/visualizer"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/scripts/consume-aiready-reports.js",
+      "path": "/Users/pengcao/projects/aiready/scripts/consume-aiready-reports.js",
+      "label": "scripts/consume-aiready-reports.js",
+      "title": "Issues: 0\nRelated file\nDeps: 2",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "scripts"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/scripts/visualize.js",
+      "path": "/Users/pengcao/projects/aiready/scripts/visualize.js",
+      "label": "scripts/visualize.js",
+      "title": "Issues: 0\nRelated file\nDeps: 3",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "scripts"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/types/react-jsx-runtime.d.ts",
+      "path": "/Users/pengcao/projects/aiready/types/react-jsx-runtime.d.ts",
+      "label": "types/react-jsx-runtime.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "Users"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/types/shims-aiready-and-d3.d.ts",
+      "path": "/Users/pengcao/projects/aiready/types/shims-aiready-and-d3.d.ts",
+      "label": "types/shims-aiready-and-d3.d.ts",
+      "title": "Issues: 0\nRelated file\nDeps: 0",
+      "size": 65,
+      "duplicates": 0,
+      "color": "#97c2fc",
+      "group": "Users"
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.module.css",
+      "path": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.module.css",
+      "label": "landing/components/BlogPostClient.module.css",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils",
+      "label": "packages/visualizer/web/src/utils",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "packages/visualizer",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/app/globals.css",
+      "path": "/Users/pengcao/projects/aiready/landing/app/globals.css",
+      "label": "landing/app/globals.css",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/core/src/types",
+      "path": "/Users/pengcao/projects/aiready/packages/core/src/types",
+      "label": "packages/core/src/types",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "packages/core",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/styles/index.css",
+      "path": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/styles/index.css",
+      "label": "packages/visualizer/web/src/styles/index.css",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "packages/visualizer",
+      "duplicates": 0
+    },
+    {
+      "id": "/Users/pengcao/projects/aiready/landing/.next/types/routes.d.ts",
+      "path": "/Users/pengcao/projects/aiready/landing/.next/types/routes.d.ts",
+      "label": "landing/.next/types/routes.d.ts",
+      "title": "Dependency",
+      "size": 2,
+      "color": "#97c2fc",
+      "group": "landing",
+      "duplicates": 0
+    }
+  ],
+  "edges": [
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.js",
+      "target": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/examples/multi-language-parsing.js",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/cli/src/cli.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/builder.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/cli/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "target": "/Users/pengcao/projects/aiready/packages/skills/src/config.ts",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/vite.config.js",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/input.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/api/request-report.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/api/scan.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/api/scan.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/api/request-report.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "type": "similarity"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/extractors/python-extractor.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzers/python-context.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/utils/ast-parser.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/builder.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "type": "reference"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/cli/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/cli/src/index.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Breadcrumb.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Header.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Footer.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/docs/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/analyzer.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/charts/NodeItem.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/charts/LinkItem.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/grouping.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/context-rules.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/scope-tracker.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-ast.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/config-loader.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzer.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/cli.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/semantic-analysis.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/MotionProgress.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Header.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Footer.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Comments.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/BlogPostClient.module.css",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/context-detector.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/utils/ast-parser.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/patterns.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/GraphCanvas.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/layout.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/app/globals.css",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/GraphControls.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/CTA.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/CTA.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AgentPrompt.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/analyzers/naming-python.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/scoring.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/context-analyzer/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/FAQ.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/CodeBlock.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/CodeBlockCopyButton.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/scoring.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/pattern-detect/src/detector.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/consistency/src/scoring.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/consistency/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AnimatedHero.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Benefits.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/FloatingElements.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/RequestForm.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/LiveScanDemo.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Header.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Features.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AIReadinessScore.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/NotAnotherLinter.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/CTA.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/FAQ.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/Footer.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AIOptimizedContent.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/app/page.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/lib/seo.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/Testimonials.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/parsers/typescript-parser.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/parsers/parser-factory.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/parsers/python-parser.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/Benefits.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/Benefits.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/AnimatedStats.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/Navbar.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/NodeDetails.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/utils/file-scanner.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/types",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LegendPanel.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LegendPanel.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/utils/config.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/types",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/core/src/utils/cli-helpers.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/core/src/index.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/invisible-codebase.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/ai-code-debt-tsunami.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/metrics-that-actually-matter.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/semantic-duplicate-detection.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/hidden-cost-import-chains.meta.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/LinkItem.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/utils",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useDimensions.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useTheme.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/charts/NodeItem.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/charts/ForceDirectedGraph.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/card.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/radio-group.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/switch.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/stack.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/ErrorDisplay.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/src/cli/index.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/src/graph/builder.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/select.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/constants.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/Features.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/Features.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ToolShowcase.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/grid.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/checkbox.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/components/ChartsClient.tsx",
+      "target": "/Users/pengcao/projects/aiready/landing/components/ParallaxSection.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/input.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/container.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/textarea.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/hooks/useTheme.ts",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/components/src/components/separator.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/components/src/utils/cn.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/lib/blog-tsx.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/content/blog-tsx/index.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/components/LoadingSpinner.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/types.ts",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/main.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/App.tsx",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/main.tsx",
+      "target": "/Users/pengcao/projects/aiready/packages/visualizer/web/src/styles/index.css",
+      "type": "dependency"
+    },
+    {
+      "source": "/Users/pengcao/projects/aiready/landing/next-env.d.ts",
+      "target": "/Users/pengcao/projects/aiready/landing/.next/types/routes.d.ts",
+      "type": "dependency"
+    }
+  ],
+  "clusters": [],
+  "issues": [],
+  "metadata": {
+    "timestamp": "2026-02-16T07:58:36.217Z",
+    "totalFiles": 189,
+    "totalDependencies": 176,
+    "analysisTypes": [],
+    "criticalIssues": 15,
+    "majorIssues": 0,
+    "minorIssues": 47,
+    "infoIssues": 0
+  }
+};
+      document.getElementById('stat-files').textContent = graphData.metadata.totalFiles;
+      document.getElementById('stat-deps').textContent = graphData.metadata.totalDependencies;
 
-      // Build edge items with ids and meta type
-      const edgeItems = data.edges.map((e, i) => {
-        let color = '#848484';
-        let item = { id: i, from: e.from, to: e.to, metaType: e.type };
-        if (e.type === 'similarity') { color = '#fb7e81'; item.length = 100; item.color = { color }; }
-        else if (e.type === 'dependency') { color = '#84c1ff'; item.length = 300; item.color = { color }; }
-        else if (e.type === 'reference') { color = '#ffa500'; item.length = 300; item.color = { color }; }
-        else { item.length = 300; item.color = { color }; }
-        return item;
-      });
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d');
 
-      const edges = new vis.DataSet(edgeItems);
+      const nodes = graphData.nodes.map((n, i) => ({
+        ...n,
+        x: canvas.width / 2 + Math.cos(i / graphData.nodes.length * Math.PI * 2) * (Math.min(canvas.width, canvas.height) / 3),
+        y: canvas.height / 2 + Math.sin(i / graphData.nodes.length * Math.PI * 2) * (Math.min(canvas.width, canvas.height) / 3),
+      }));
 
-      const container = document.getElementById('network');
-      const network = new vis.Network(container, { nodes, edges }, {
-        physics: {
-          enabled: true,
-          solver: 'forceAtlas2Based',
-          forceAtlas2Based: {
-            gravitationalConstant: -150,
-            centralGravity: 0.01,
-            springLength: 100,
-            springConstant: 0.08,
-            damping: 0.4,
-            avoidOverlap: 1
-          },
-          stabilization: {
-            enabled: true,
-            iterations: 1000,
-            updateInterval: 100,
-            onlyDynamicEdges: false,
-            fit: true
-          },
-          adaptiveTimestep: true
-        },
-        manipulation: false,
-        nodes: { shape: 'dot', scaling: { min: 5, max: 50 }, font: { size: 12 } },
-        edges: { 
-          smooth: { type: 'continuous', roundness: 0.5 },
-          arrows: { to: { enabled: true, scaleFactor: 0.5 } }
-        }
-      });
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Stop physics after stabilization to handle large graphs
-      network.on("stabilizationIterationsDone", function () {
-        network.setOptions({ physics: false });
-      });
+        graphData.edges.forEach(edge => {
+          const s = nodes.find(n => n.id === edge.source);
+          const t = nodes.find(n => n.id === edge.target);
+          if (!s || !t) return;
+          if (edge.type === 'related') return;
+          if (edge.type === 'similarity') {
+            ctx.strokeStyle = '#fb7e81';
+            ctx.lineWidth = 1.2;
+          } else if (edge.type === 'dependency') {
+            ctx.strokeStyle = '#84c1ff';
+            ctx.lineWidth = 1.0;
+          } else if (edge.type === 'reference') {
+            ctx.strokeStyle = '#ffa500';
+            ctx.lineWidth = 0.9;
+          } else {
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 0.8;
+          }
+          ctx.beginPath();
+          ctx.moveTo(s.x, s.y);
+          ctx.lineTo(t.x, t.y);
+          ctx.stroke();
+        });
 
-      network.on('click', function(params) {
-        if (params.nodes && params.nodes.length) {
-          const id = params.nodes[0];
-          const node = nodes.get(id);
-          document.getElementById('details').innerHTML = '<strong>' + node.label + '</strong><br/><pre>' + node.title + '</pre><br/><code>' + id + '</code>';
-        }
-      });
+        const groups = {};
+        nodes.forEach(n => {
+          const g = n.group || '__default';
+          if (!groups[g]) groups[g] = { minX: n.x, minY: n.y, maxX: n.x, maxY: n.y };
+          groups[g].minX = Math.min(groups[g].minX, n.x);
+          groups[g].minY = Math.min(groups[g].minY, n.y);
+          groups[g].maxX = Math.max(groups[g].maxX, n.x);
+          groups[g].maxY = Math.max(groups[g].maxY, n.y);
+        });
 
-      // basic stats
-      const stats = document.createElement('div');
-      stats.style.padding = '12px';
-      stats.innerHTML = '<hr><b>Nodes:</b> ' + nodes.length + '<br><b>Edges:</b> ' + edges.length;
-      document.getElementById('sidebar').appendChild(stats);
+        const groupRelations = {};
+        graphData.edges.forEach(edge => {
+          const sNode = nodes.find(n => n.id === edge.source);
+          const tNode = nodes.find(n => n.id === edge.target);
+          if (!sNode || !tNode) return;
+          const g1 = sNode.group || '__default';
+          const g2 = tNode.group || '__default';
+          if (g1 === g2) return;
+          const key = g1 < g2 ? g1 + '::' + g2 : g2 + '::' + g1;
+          groupRelations[key] = (groupRelations[key] || 0) + 1;
+        });
+
+        Object.keys(groupRelations).forEach(k => {
+          const count = groupRelations[k];
+          const [ga, gb] = k.split('::');
+          if (!groups[ga] || !groups[gb]) return;
+          const ax = (groups[ga].minX + groups[ga].maxX) / 2;
+          const ay = (groups[ga].minY + groups[ga].maxY) / 2;
+          const bx = (groups[gb].minX + groups[gb].maxX) / 2;
+          const by = (groups[gb].minY + groups[gb].maxY) / 2;
+          ctx.beginPath();
+          ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+          ctx.lineWidth = Math.min(6, 0.6 + Math.sqrt(count));
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+        });
+
+        Object.keys(groups).forEach(g => {
+          if (g === '__default') return;
+          const box = groups[g];
+          const pad = 16;
+          const x = box.minX - pad;
+          const y = box.minY - pad;
+          const w = (box.maxX - box.minX) + pad * 2;
+          const h = (box.maxY - box.minY) + pad * 2;
+          ctx.save();
+          ctx.fillStyle = 'rgba(30,64,175,0.04)';
+          ctx.strokeStyle = 'rgba(30,64,175,0.12)';
+          ctx.lineWidth = 1.2;
+          const r = 8;
+          ctx.beginPath();
+          ctx.moveTo(x + r, y);
+          ctx.arcTo(x + w, y, x + w, y + h, r);
+          ctx.arcTo(x + w, y + h, x, y + h, r);
+          ctx.arcTo(x, y + h, x, y, r);
+          ctx.arcTo(x, y, x + w, y, r);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+          ctx.fillStyle = '#94a3b8';
+          ctx.font = '11px sans-serif';
+          ctx.fillText(g, x + 8, y + 14);
+        });
+
+        nodes.forEach(n => {
+          const sizeVal = (n.size || n.value || 1);
+          const r = 6 + (sizeVal / 2);
+          ctx.beginPath();
+          ctx.fillStyle = n.color || '#60a5fa';
+          ctx.arc(n.x, n.y, r, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = '#e2e8f0';
+          ctx.font = '11px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(n.label || n.id.split('/').slice(-1)[0], n.x, n.y + r + 12);
+        });
+      }
+
+      draw();
     </script>
   </body>
 </html>

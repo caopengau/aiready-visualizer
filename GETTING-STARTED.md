@@ -2,9 +2,9 @@
 
 ## What We've Built
 
-✅ **Phase 1 Foundation - COMPLETE**
+✅ **Phase 1-4: Foundation to Flexible Repositioning - COMPLETE**
 
-We've successfully created the foundation of the AIReady visualizer package:
+We've successfully built a comprehensive visualization system for AIReady analysis results:
 
 ### 1. Package Structure
 - **TypeScript Configuration**: Standalone tsconfig with ES2020 target
@@ -20,6 +20,7 @@ We've successfully created the foundation of the AIReady visualizer package:
 - Detect circular dependencies automatically
 - Create domain-based clusters
 - Calculate graph statistics (components, density, etc.)
+- **Build from Reports**: `GraphBuilder.buildFromReport()` for processing aiready reports
 
 #### Type System (`src/types.ts`)
 - Comprehensive TypeScript types for all graph elements
@@ -34,14 +35,28 @@ We've successfully created the foundation of the AIReady visualizer package:
 - Auto-open in browser with `--open` flag
 - Embedded graph data in HTML (no external dependencies)
 
-### 3. Output Format
+### 3. Web Application (`web/`)
+- **React + Vite Frontend**: Modern interactive UI
+- **d3-force Layout Engine**: Physics-based force-directed graphs
+- **ForceDirectedGraph Component**: Reusable graph visualization from `@aiready/components`
+- **GraphControls**: Floating toolbar with repositioning controls
+- **Theme Support**: Dark/Light mode with system preference detection
 
-The CLI generates a **standalone HTML file** with:
-- Embedded graph data (JSON)
-- Simple canvas-based rendering (placeholder)
-- Statistics dashboard
-- Dark theme UI
-- No external dependencies required
+### 4. Interactive Features
+
+#### Node Repositioning
+- Drag individual nodes to reposition
+- Pin/unpin nodes (double-click)
+- Pin all / Unpin all controls
+- Manual layout mode (disable physics)
+- Reset layout to auto
+- Fit view to show all nodes
+
+#### Visual Features
+- Zoom & pan (scroll/drag)
+- Node details panel (click nodes)
+- Legend panel (severity colors, edge types)
+- Severity-based coloring (critical, major, minor, info)
 
 ## Quick Start
 
@@ -56,6 +71,17 @@ pnpm install
 
 ```bash
 pnpm build
+```
+
+### Run Web Application
+
+```bash
+# Start development server
+pnpm dev:web
+
+# Or build and preview
+pnpm build:web
+pnpm preview
 ```
 
 ### Test the CLI
@@ -78,55 +104,87 @@ import { GraphBuilder } from '@aiready/visualizer';
 const builder = new GraphBuilder('./src');
 
 // Add nodes
-builder.addFileNode('src/index.ts', {
-  tokenCost: 2000,
-  linesOfCode: 150,
-  dependencies: 3,
-  imports: 5,
-  exports: 2,
-});
-
-builder.addFileNode('src/utils/helper.ts', {
-  tokenCost: 1000,
-  linesOfCode: 80,
-});
+builder.addNode('src/index.ts', 'Main entry', 100);
+builder.addNode('src/utils/helper.ts', 'Utilities', 50);
 
 // Add edges
-builder.addDependencyEdge('src/index.ts', 'src/utils/helper.ts', 2);
+builder.addEdge('src/index.ts', 'src/utils/helper.ts', 'dependency');
 
-// Build graph with automatic analysis
+// Build graph
 const graph = builder.build();
 
 console.log('Graph Statistics:');
-console.log(`- Nodes: ${graph.metadata.totalNodes}`);
-console.log(`- Edges: ${graph.metadata.totalEdges}`);
-console.log(`- Circular Dependencies: ${graph.metadata.circularDependencies.length}`);
-console.log(`- Connected Components: ${graph.metadata.connectedComponents}`);
+console.log(`- Nodes: ${graph.nodes.length}`);
+console.log(`- Edges: ${graph.edges.length}`);
 ```
 
-## What's Next?
+### Building from aiready Reports
 
-### Phase 2: Interactive Frontend (Coming Soon)
+```typescript
+import { GraphBuilder } from '@aiready/visualizer';
+import fs from 'fs';
 
-The current HTML output is a simple placeholder. Phase 2 will add:
+const report = JSON.parse(fs.readFileSync('aiready-report.json', 'utf-8'));
+const graph = GraphBuilder.buildFromReport(report, '/path/to/project');
 
-- **React + Vite Frontend**: Modern interactive UI
-- **d3-force Layout Engine**: Physics-based force-directed graphs
-- **Interactive Controls**:
-  - Zoom and pan
-  - Node selection
-  - Search and filter
-  - Layout switching
-- **Details Panel**: Show node/edge information on click
-- **Filters**: Filter by severity, file type, metrics, etc.
-- **Multiple Layouts**: Force-directed, hierarchical, radial, circular
+console.log('Graph Statistics:');
+console.log(`- Files: ${graph.metadata.totalFiles}`);
+console.log(`- Dependencies: ${graph.metadata.totalDependencies}`);
+console.log(`- Critical Issues: ${graph.metadata.criticalIssues}`);
+console.log(`- Major Issues: ${graph.metadata.majorIssues}`);
+```
 
--### Phase 3: Integration with aiready-cli
+## Current Capabilities
 
-- Integrate with `@aiready/cli` for unified analysis
-- Generate visualizations from real analysis data
-- Support for pattern-detect, context-analyzer, and consistency results
-- Overlay analysis issues on the graph
+✅ Create graph from file data
+✅ Add nodes with metrics
+✅ Add dependency edges
+✅ Detect circular dependencies
+✅ Calculate graph statistics
+✅ Generate standalone HTML
+✅ Interactive React UI with d3-force
+✅ Drag nodes to reposition
+✅ Pin/unpin nodes
+✅ Pin all/Unpin all controls
+✅ Manual layout mode
+✅ Fit view & Reset layout
+✅ Theme support (dark/light)
+✅ Node details panel
+✅ Legend panel
+✅ Zoom & pan
+✅ CLI interface
+✅ Build from aiready reports
+
+## Next Phase Recommendations
+
+### Priority 1: CLI Integration
+- Integrate with `@aiready/cli` for unified analysis workflow
+- Add `aiready visualise` command to the main CLI
+- Auto-generate visualization after scan completes
+
+### Priority 2: Enhanced Filtering & Search
+- Filter by severity level
+- Filter by file type/module type
+- Filter by domain/cluster
+- Search nodes by name/path
+- Show/hide edge types
+
+### Priority 3: Export Capabilities
+- Export graph as PNG image
+- Export graph as SVG
+- Export as JSON (graph data)
+- Print-friendly layout
+
+### Priority 4: Advanced Layouts
+- Hierarchical/tree layout
+- Circular layout
+- Radial layout
+- Cluster-based layout
+
+### Priority 5: Collaboration Features
+- Shareable visualization URLs
+- Save/load layout states
+- Annotations on nodes
 
 ## Architecture
 
@@ -139,7 +197,11 @@ The visualizer follows the hub-and-spoke pattern used by the project:
     ├── Graph Builder
     ├── Type Definitions
     ├── CLI Tool
-    └── [Future] React Frontend
+    └── Web App
+        ↓
+@aiready/components (HUB - shared UI)
+    ├── ForceDirectedGraph
+    └── GraphControls
     ↓
 @aiready/cli (HUB - integration)
 ```
@@ -147,41 +209,27 @@ The visualizer follows the hub-and-spoke pattern used by the project:
 ## Development Commands
 
 ```bash
-# Watch mode
+# Watch mode for CLI
 pnpm dev
 
-# Build
+# Start web dev server
+pnpm dev:web
+
+# Build CLI + Web
 pnpm build
+
+# Build CLI only
+pnpm build:cli
+
+# Build web only
+pnpm build:web
 
 # Type check
 pnpm typecheck
 
-# Clean
-pnpm clean
-
-# Test (when tests are added)
+# Run tests
 pnpm test
 ```
-
-## Current Capabilities
-
-✅ Create graph from file data
-✅ Add nodes with metrics
-✅ Add dependency edges
-✅ Detect circular dependencies
-✅ Calculate graph statistics
-✅ Generate standalone HTML
-✅ Simple canvas visualization
-✅ CLI interface
-
-## Limitations (To Be Addressed)
-
-⏳ Interactive UI (React + d3-force)
-⏳ Multiple layout algorithms
-⏳ Filters and search
-⏳ Integration with real analysis data
-⏳ Export to PNG/SVG
-⏳ Advanced interactions (drag, select, etc.)
 
 ## Contributing
 
