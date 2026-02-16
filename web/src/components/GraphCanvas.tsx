@@ -20,6 +20,7 @@ export function GraphCanvas({
   onNodeClick,
 }: GraphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const zoomTransformRef = useRef<d3.ZoomTransform>(d3.zoomIdentity);
 
   useEffect(() => {
     if (!data || !svgRef.current || !data.nodes.length) return;
@@ -36,8 +37,10 @@ export function GraphCanvas({
       .scaleExtent([GRAPH_CONFIG.zoomMin, GRAPH_CONFIG.zoomMax])
       .on('zoom', (event) => {
         g.attr('transform', event.transform);
+        zoomTransformRef.current = event.transform;
       });
     svg.call(zoom);
+    svg.call(zoom.transform, zoomTransformRef.current);
 
     // Prepare nodes and links
     const nodes = data.nodes.map(d => ({ ...d }));
