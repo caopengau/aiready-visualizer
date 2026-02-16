@@ -68,9 +68,40 @@ export function transformReportToGraph(report: ReportData): GraphData {
   }
 
   for (const ctx of report.context) {
+    const sourceDir = ctx.file.substring(0, ctx.file.lastIndexOf('/'));
     for (const dep of ctx.dependencyList || []) {
       if (dep.startsWith('.') || dep.startsWith('/')) {
-        const targetFile = [...nodeMap.keys()].find(k => k.endsWith(dep.replace(/^\.\/?/, '')));
+        // Try multiple matching strategies
+        let targetFile: string | undefined;
+        
+        // Strategy 1: Direct resolve from source file's directory
+        const normalizedDep = dep.replace(/^\.\/?/, '');
+        const possiblePaths = [
+          // With extensions
+          `${sourceDir}/${normalizedDep}.ts`,
+          `${sourceDir}/${normalizedDep}.tsx`,
+          `${sourceDir}/${normalizedDep}/index.ts`,
+          `${sourceDir}/${normalizedDep}/index.tsx`,
+          // Just the path
+          `${sourceDir}/${normalizedDep}`,
+        ];
+        
+        for (const p of possiblePaths) {
+          if (nodeMap.has(p)) {
+            targetFile = p;
+            break;
+          }
+        }
+        
+        // Strategy 2: Fall back to loose endsWith matching
+        if (!targetFile) {
+          const depBase = normalizedDep.split('/').pop() || normalizedDep;
+          targetFile = [...nodeMap.keys()].find(k => 
+            k.endsWith(`/${depBase}.ts`) || k.endsWith(`/${depBase}.tsx`) ||
+            k.endsWith(`/${depBase}/index.ts`) || k.endsWith(`/${depBase}/index.tsx`)
+          );
+        }
+        
         if (targetFile && targetFile !== ctx.file) {
           edges.push({ source: ctx.file, target: targetFile, type: 'dependency' });
         }
@@ -100,9 +131,22 @@ export function transformReportToGraph(report: ReportData): GraphData {
     }
   }
 
+  // Sort edges by priority: similarity and dependency first (most important for visualization)
+  const edgePriority: Record<string, number> = {
+    similarity: 1,
+    dependency: 2,
+    reference: 3,
+    related: 4,
+  };
+  const sortedEdges = [...edges].sort((a, b) => {
+    const priorityA = edgePriority[a.type] || 99;
+    const priorityB = edgePriority[b.type] || 99;
+    return priorityA - priorityB;
+  });
+
   return {
     nodes: nodes.slice(0, GRAPH_CONFIG.maxNodes),
-    edges: edges.slice(0, GRAPH_CONFIG.maxEdges),
+    edges: sortedEdges.slice(0, GRAPH_CONFIG.maxEdges),
   };
 }
 
