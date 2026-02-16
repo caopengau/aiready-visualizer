@@ -1,7 +1,94 @@
-import { ThemeColors } from '../types';
+import { ThemeColors, SeverityLevel, EdgeType } from '../types';
 import { severityColors, edgeColors } from '../constants';
 
-// Legend Item Component with improved visibility
+// Checkbox/Toggle Icon
+const CheckIcon = ({ checked }: { checked: boolean }) => (
+  <svg 
+    width="14" 
+    height="14" 
+    viewBox="0 0 24 24" 
+    fill="none" 
+    stroke={checked ? '#10b981' : '#6b7280'} 
+    strokeWidth="3"
+    strokeLinecap="round" 
+    strokeLinejoin="round"
+  >
+    {checked && <path d="M20 6L9 17l-5-5" />}
+  </svg>
+);
+
+// Legend Item with Toggle
+function LegendItemWithToggle({ 
+  color, 
+  label, 
+  isGlow = false,
+  isLine = false,
+  colors,
+  isVisible,
+  onToggle
+}: { 
+  color: string; 
+  label: string;
+  isGlow?: boolean;
+  isLine?: boolean;
+  colors: ThemeColors;
+  isVisible: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button 
+      onClick={onToggle}
+      className="group cursor-pointer transition-all hover:bg-white/5 w-full"
+      style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '8px', 
+        padding: '6px 8px',
+        borderRadius: '8px',
+        opacity: isVisible ? 1 : 0.4,
+      }}
+      title={isVisible ? `Click to hide ${label}` : `Click to show ${label}`}
+    >
+      {/* Toggle checkbox */}
+      <div 
+        className="flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors"
+        style={{ 
+          borderColor: isVisible ? '#10b981' : colors.panelBorder,
+          backgroundColor: isVisible ? `${color}20` : 'transparent'
+        }}
+      >
+        {isVisible && (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="3">
+            <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+      
+      {isLine ? (
+        <span 
+          className="w-10 h-1 rounded-full flex-shrink-0" 
+          style={{ backgroundColor: color }} 
+        />
+      ) : (
+        <span 
+          className={`w-4 h-4 rounded-full flex-shrink-0 ${isGlow ? 'shadow-lg' : ''}`}
+          style={{ 
+            backgroundColor: color, 
+            boxShadow: isGlow && isVisible ? `0 0 10px ${color}90` : 'none' 
+          }} 
+        />
+      )}
+      <span 
+        className="text-sm font-medium transition-colors leading-tight"
+        style={{ color: colors.textMuted }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+// Regular Legend Item (non-toggleable)
 function LegendItem({ 
   color, 
   label, 
@@ -52,9 +139,25 @@ function LegendItem({
 
 interface LegendPanelProps {
   colors: ThemeColors;
+  visibleSeverities: Set<SeverityLevel>;
+  visibleEdgeTypes: Set<EdgeType>;
+  onToggleSeverity: (severity: SeverityLevel) => void;
+  onToggleEdgeType: (edgeType: EdgeType) => void;
 }
 
-export function LegendPanel({ colors }: LegendPanelProps) {
+export function LegendPanel({ 
+  colors, 
+  visibleSeverities, 
+  visibleEdgeTypes,
+  onToggleSeverity,
+  onToggleEdgeType 
+}: LegendPanelProps) {
+  // Get visible counts
+  const visibleSeverityCount = visibleSeverities.size;
+  const totalSeverities = Object.keys(severityColors).length;
+  const visibleEdgeCount = visibleEdgeTypes.size;
+  const totalEdgeTypes = Object.keys(edgeColors).filter(k => k !== 'default' && k !== 'reference').length;
+
   return (
     <div style={{ padding: '16px 16px', animation: 'fadeIn 0.2s ease-in' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -68,45 +171,65 @@ export function LegendPanel({ colors }: LegendPanelProps) {
           </h2>
         </div>
 
-        {/* Severity Legend */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h3 
-            className="text-xs font-bold uppercase tracking-widest" 
-            style={{ color: colors.textMuted, marginBottom: '4px' }}
-          >
-            Severity
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Severity Legend with Toggles */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <h3 
+              className="text-xs font-bold uppercase tracking-widest" 
+              style={{ color: colors.textMuted }}
+            >
+              Severity
+            </h3>
+            <span 
+              className="text-xs font-medium" 
+              style={{ color: visibleSeverityCount === totalSeverities ? '#10b981' : '#f59e0b' }}
+            >
+              {visibleSeverityCount}/{totalSeverities}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {Object.entries(severityColors).map(([key, color]) => (
-              <LegendItem 
+              <LegendItemWithToggle 
                 key={key}
                 color={color}
                 label={key === 'default' ? 'No Issues' : key.charAt(0).toUpperCase() + key.slice(1)}
                 isGlow={key !== 'default'}
                 colors={colors}
+                isVisible={visibleSeverities.has(key as SeverityLevel)}
+                onToggle={() => onToggleSeverity(key as SeverityLevel)}
               />
             ))}
           </div>
         </div>
 
-        {/* Connections Legend */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h3 
-            className="text-xs font-bold uppercase tracking-widest" 
-            style={{ color: colors.textMuted, marginBottom: '4px' }}
-          >
-            Connections
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {/* Connections Legend with Toggles */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+            <h3 
+              className="text-xs font-bold uppercase tracking-widest" 
+              style={{ color: colors.textMuted }}
+            >
+              Connections
+            </h3>
+            <span 
+              className="text-xs font-medium" 
+              style={{ color: visibleEdgeCount === totalEdgeTypes ? '#10b981' : '#f59e0b' }}
+            >
+              {visibleEdgeCount}/{totalEdgeTypes}
+            </span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
             {Object.entries(edgeColors)
               .filter(([k]) => k !== 'default' && k !== 'reference')
               .map(([key, color]) => (
-                <LegendItem 
+                <LegendItemWithToggle 
                   key={key}
                   color={color}
                   label={key.charAt(0).toUpperCase() + key.slice(1)}
                   isLine
                   colors={colors}
+                  isVisible={visibleEdgeTypes.has(key as EdgeType)}
+                  onToggle={() => onToggleEdgeType(key as EdgeType)}
                 />
               ))}
           </div>
@@ -150,7 +273,7 @@ export function LegendPanel({ colors }: LegendPanelProps) {
             className="text-xs leading-relaxed" 
             style={{ color: colors.textMuted }}
           >
-            <span className="font-semibold text-amber-400">💡 Tip:</span> Click and drag nodes to rearrange. Scroll to zoom.
+            <span className="font-semibold text-amber-400">💡 Tip:</span> Click and drag nodes to rearrange. Scroll to zoom. Toggle items above to filter.
           </p>
         </div>
       </div>

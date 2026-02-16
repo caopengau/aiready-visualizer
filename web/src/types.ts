@@ -22,6 +22,15 @@ export interface GraphData {
   edges: GraphEdge[];
 }
 
+// Filter types
+export type SeverityLevel = 'critical' | 'major' | 'minor' | 'info' | 'default';
+export type EdgeType = 'similarity' | 'dependency' | 'reference' | 'related';
+
+export interface FilterState {
+  visibleSeverities: Set<SeverityLevel>;
+  visibleEdgeTypes: Set<EdgeType>;
+}
+
 export interface PatternIssue {
   fileName: string;
   issues: Array<{ type: string; severity: string; message: string }>;
