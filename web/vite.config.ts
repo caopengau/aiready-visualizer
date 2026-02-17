@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 import { existsSync } from 'fs';
 
-export default defineConfig(({ command }) => {
+export default defineConfig(async ({ command }) => {
   const isDev = command === 'serve';
-  
+
   // Resolve path to @aiready/components for alias
   // Try monorepo first, then fall back to installed package
   let componentsPath = resolve(__dirname, '../../components/src');
@@ -21,8 +20,22 @@ export default defineConfig(({ command }) => {
     }
   }
 
+  const plugins: any[] = [react()];
+  // Try to dynamically import Tailwind Vite plugin. If it's not installed,
+  // continue without it so consumers who don't use Tailwind won't error.
+  try {
+    // import may return a module with a default export or the function itself
+    const mod = await import('@tailwindcss/vite');
+    const fn = mod?.default ?? mod;
+    if (typeof fn === 'function') {
+      plugins.push(fn());
+    }
+  } catch (e) {
+    // plugin not available; proceed without Tailwind integration
+  }
+
   return {
-    plugins: [react(), tailwindcss()],
+    plugins,
     build: {
       outDir: 'dist',
       emptyOutDir: true,
