@@ -33,7 +33,19 @@ export function transformReportToGraph(report: ReportData): GraphData {
   }
 
   for (const ctx of report.context) {
-    const issues = fileIssues.get(ctx.file);
+    // Try direct match first. If not found, try basename fallback so that
+    // pattern entries with different path styles still associate their
+    // severity with the context file in consumer reports.
+    let issues = fileIssues.get(ctx.file);
+    if (!issues) {
+      const ctxBase = (ctx.file || '').split('/').pop();
+      for (const [k, v] of fileIssues.entries()) {
+        if ((k || '').split('/').pop() === ctxBase) {
+          issues = v;
+          break;
+        }
+      }
+    }
     const severity = issues?.maxSeverity || ctx.severity || 'default';
     const tokenCost = ctx.tokenCost || 0;
 
