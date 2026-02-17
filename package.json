@@ -22,7 +22,13 @@
   },
   "files": [
     "dist",
-    "web/dist"
+    "web/dist",
+    "web/src",
+    "web/index.html",
+    "web/vite.config.ts",
+    "web/tsconfig.json",
+    "web/package.json",
+    "web/public"
   ],
   "scripts": {
     "dev": "tsup --watch",
