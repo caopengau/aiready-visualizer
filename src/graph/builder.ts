@@ -239,6 +239,14 @@ export class GraphBuilder {
         // bump size to reflect relatedness
         const n = (builder as any).nodesMap.get(path.resolve(builder.rootDir, resolvedRel));
         if (n) n.size = (n.size || 1) + 2;
+        // Also add a visual 'related' edge so that built/packed visualizations
+        // (which use this GraphBuilder) include related connections rather
+        // than only bumping node prominence.
+        try {
+          builder.addEdge(file, resolvedRel, 'related');
+        } catch (e) {
+          // ignore any edge errors
+        }
       });
 
       const fileDir = path.dirname(file);
