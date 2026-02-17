@@ -109,13 +109,45 @@ export function transformReportToGraph(report: ReportData): GraphData {
     }
 
     for (const related of ctx.relatedFiles || []) {
-      if (nodeMap.has(related) && related !== ctx.file) {
+      let relatedId: string | undefined = related;
+
+      // If exact match exists, use it. Otherwise try resolving relative paths
+      // from the source file's directory and try common extensions. As a
+      // final fallback, match by basename (endsWith) similar to dependency
+      // heuristics.
+      if (!nodeMap.has(relatedId)) {
+        const sourceDir = ctx.file.substring(0, ctx.file.lastIndexOf('/'));
+        const normalizedRel = related.replace(/^\.\/?/, '');
+        const tryPaths = [
+          `${sourceDir}/${normalizedRel}.ts`,
+          `${sourceDir}/${normalizedRel}.tsx`,
+          `${sourceDir}/${normalizedRel}/index.ts`,
+          `${sourceDir}/${normalizedRel}/index.tsx`,
+          `${sourceDir}/${normalizedRel}`,
+        ];
+        for (const p of tryPaths) {
+          if (nodeMap.has(p)) {
+            relatedId = p;
+            break;
+          }
+        }
+      }
+
+      // Fallback: loose basename matching
+      if (!nodeMap.has(relatedId)) {
+        const relBase = (related.split('/').pop() || related).replace(/\.(ts|tsx|js|jsx)$/, '');
+        relatedId = [...nodeMap.keys()].find(k =>
+          k.endsWith(`/${relBase}.ts`) || k.endsWith(`/${relBase}.tsx`) || k.endsWith(`/${relBase}/index.ts`) || k.endsWith(`/${relBase}/index.tsx`) || k.endsWith(`/${relBase}`)
+        );
+      }
+
+      if (relatedId && nodeMap.has(relatedId) && relatedId !== ctx.file) {
         const exists = edges.some(
           e =>
-            (e.source === ctx.file && e.target === related) ||
-            (e.source === related && e.target === ctx.file)
+            (e.source === ctx.file && e.target === relatedId) ||
+            (e.source === relatedId && e.target === ctx.file)
         );
-        if (!exists) edges.push({ source: ctx.file, target: related, type: 'related' });
+        if (!exists) edges.push({ source: ctx.file, target: relatedId, type: 'related' });
       }
     }
   }
