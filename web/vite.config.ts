@@ -21,6 +21,42 @@ export default defineConfig(async ({ command }) => {
   }
 
   const plugins: any[] = [react()];
+  // Dev-time middleware: if the CLI sets AIREADY_REPORT_PATH when spawning Vite,
+  // serve that file at /report-data.json so the client can fetch the report
+  // directly from the consumer working directory without copying into node_modules.
+  const reportProxyPlugin = {
+    name: 'aiready-report-proxy',
+    configureServer(server: any) {
+      const reportPath = process.env.AIREADY_REPORT_PATH;
+      if (!reportPath) return;
+      server.middlewares.use(async (req: any, res: any, next: any) => {
+        try {
+          const url = req.url || '';
+          if (url === '/report-data.json' || url.startsWith('/report-data.json?')) {
+            const { promises: fsp } = await import('fs');
+            if (!existsSync(reportPath)) {
+              res.statusCode = 404;
+              res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+              res.end('Report not found');
+              return;
+            }
+            const data = await fsp.readFile(reportPath, 'utf8');
+            res.statusCode = 200;
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+            res.end(data);
+            return;
+          }
+        } catch (e) {
+          res.statusCode = 500;
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+          res.end('Error reading report');
+          return;
+        }
+        next();
+      });
+    },
+  };
+  plugins.push(reportProxyPlugin);
   // Try to dynamically import Tailwind Vite plugin. If it's not installed,
   // continue without it so consumers who don't use Tailwind won't error.
   try {
