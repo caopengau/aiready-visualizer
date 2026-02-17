@@ -4,10 +4,7 @@
  * CLI for AIReady Visualizer
  * 
  * Usage:
- *   aiready-visualize                # Start dev server (default)
- *   aiready-visualize --dev          # Start dev server
- *   aiready-visualize sample -o out.html  # Generate sample visualization
- *   aiready-visualize generate in.json    # Generate from analysis results
+ *   aiready visualise                # Start dev server (default)
  */
 
 import { Command } from 'commander';

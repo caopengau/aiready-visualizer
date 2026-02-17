@@ -103,7 +103,7 @@ export function NodeDetails({ colors, selectedNode, onClose }: NodeDetailsProps)
               style={{ color: colors.textMuted }}
               title={selectedNode.id}
             >
-              {selectedNode.id}
+              {selectedNode.label}
             </p>
           </div>
           

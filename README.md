@@ -14,6 +14,7 @@ This package provides tools to transform AIReady analysis results into interacti
 ## Features
 
 ### Core Capabilities
+
 - ✅ **Graph Building**: Transform aiready analysis reports into graph structures
 - ✅ **Node Management**: File nodes with metrics (token cost, LOC, duplicates, complexity)
 - ✅ **Edge Management**: Dependency edges with types (import, dependency, similarity, reference)
@@ -21,8 +22,9 @@ This package provides tools to transform AIReady analysis results into interacti
 - ✅ **Circular Dependency Detection**: Automatic detection of circular dependencies
 
 ### Interactive Visualization
+
 - ✅ **Force-Directed Layout**: Physics-based graph layout using d3-force
-- ✅ **Flexible Node Repositioning**: 
+- ✅ **Flexible Node Repositioning**:
   - Drag individual nodes to reposition
   - Pin/unpin nodes (double-click or programmatically)
   - Pin all / Unpin all controls
@@ -35,6 +37,7 @@ This package provides tools to transform AIReady analysis results into interacti
 - ✅ **Zoom & Pan**: Scroll to zoom, drag to pan
 
 ### CLI & Integration
+
 - ✅ **Standalone HTML Generation**: Generate shareable visualizations
 - ✅ **Programmatic API**: Use GraphBuilder in your own code
 - ✅ **Sample Data Generation**: Test with sample graphs
@@ -81,11 +84,7 @@ console.log(`Issues: ${graph.metadata.criticalIssues} critical, ${graph.metadata
 ### As a CLI Tool
 
 ```bash
-# Generate a sample visualization
-aiready-visualize sample -o visualization.html
-
-# Generate from analysis results
-aiready-visualize generate results.json -o visualization.html
+aiready visualise
 ```
 
 ### Web Application
@@ -129,17 +128,20 @@ interface GraphData {
 ## Development Status
 
 ### ✅ Phase 1-2: Core Foundation - COMPLETE
+
 - Type definitions
 - Graph builder with sample data
 - Basic CLI structure
 
 ### ✅ Phase 3: Interactive Frontend - COMPLETE
+
 - Vite + React setup
 - ForceDirectedGraph integration
 - Controls and filters
 - Node details panel
 
 ### ✅ Phase 4: Flexible Node Repositioning - COMPLETE
+
 - Drag nodes individually
 - Pin/unpin nodes (double-click)
 - Pin all/Unpin all controls
