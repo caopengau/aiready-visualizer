@@ -29,9 +29,9 @@ export function ErrorDisplay({ colors, error }: ErrorDisplayProps) {
           style={{ backgroundColor: colors.cardBg }}
         >
           <p className="text-cyan-400"># Step 1: Run aiready scan</p>
-          <p className="mb-2" style={{ color: colors.textMuted }}>pnpm aiready scan . --output json</p>
-          <p className="text-cyan-400"># Step 2: Copy to visualizer</p>
-          <p style={{ color: colors.textMuted }}>cp .aiready/aiready-scan-*.json packages/visualizer/web/public/report-data.json</p>
+          <p className="mb-2" style={{ color: colors.textMuted }}>aiready scan . --output json</p>
+          <p className="text-cyan-400"># Step 2: Copy latest report to visualizer</p>
+          <p style={{ color: colors.textMuted }}>cp .aiready/aiready-report-*.json packages/visualizer/web/public/report-data.json</p>
         </div>
       </div>
     </div>
