@@ -28,6 +28,7 @@ export default defineConfig(async ({ command }) => {
     name: 'aiready-report-proxy',
     configureServer(server: any) {
       const reportPath = process.env.AIREADY_REPORT_PATH;
+      const visualizerConfigStr = process.env.AIREADY_VISUALIZER_CONFIG;
       if (!reportPath) return;
       server.middlewares.use(async (req: any, res: any, next: any) => {
         try {
@@ -40,10 +41,22 @@ export default defineConfig(async ({ command }) => {
               res.end('Report not found');
               return;
             }
-            const data = await fsp.readFile(reportPath, 'utf8');
+            let data = await fsp.readFile(reportPath, 'utf8');
+            const report = JSON.parse(data);
+            
+            // Inject visualizer config from env if available
+            if (visualizerConfigStr) {
+              try {
+                const visualizerConfig = JSON.parse(visualizerConfigStr);
+                report.visualizerConfig = visualizerConfig;
+              } catch (e) {
+                // Silently ignore parse errors
+              }
+            }
+            
             res.statusCode = 200;
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
-            res.end(data);
+            res.end(JSON.stringify(report));
             return;
           }
         } catch (e) {

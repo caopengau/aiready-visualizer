@@ -20,6 +20,14 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: FileNode[];
   edges: GraphEdge[];
+  truncated?: {
+    nodes: boolean;
+    edges: boolean;
+    nodeCount: number;
+    edgeCount: number;
+    nodeLimit: number;
+    edgeLimit: number;
+  };
 }
 
 // Filter types

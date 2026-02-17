@@ -65,8 +65,8 @@ export const themeConfig: Record<'dark' | 'light', ThemeColors> = {
 };
 
 export const GRAPH_CONFIG = {
-  maxNodes: 200,
-  maxEdges: 300,
+  maxNodes: 400,
+  maxEdges: 600,
   nodeBaseRadius: 3,
   collisionRadius: 25,
   zoomMin: 0.1,

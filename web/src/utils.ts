@@ -11,7 +11,12 @@ export function getSeverityColor(severity: string | undefined): string {
   return severityColors.default;
 }
 
-export function transformReportToGraph(report: ReportData): GraphData {
+export function transformReportToGraph(report: ReportData, runtimeGraphConfig?: { maxNodes?: number; maxEdges?: number }): GraphData {
+  // Use runtime config if available (from aiready.json), else use defaults from constants
+  const graphConfig = {
+    maxNodes: runtimeGraphConfig?.maxNodes ?? GRAPH_CONFIG.maxNodes,
+    maxEdges: runtimeGraphConfig?.maxEdges ?? GRAPH_CONFIG.maxEdges,
+  };
   const nodes: FileNode[] = [];
   const edges: GraphEdge[] = [];
   const nodeMap = new Map<string, FileNode>();
@@ -179,8 +184,8 @@ export function transformReportToGraph(report: ReportData): GraphData {
   const edgePriority: Record<string, number> = {
     similarity: 1,
     dependency: 2,
-    reference: 3,
-    related: 4,
+    reference: 4,
+    related: 3,
   };
   const sortedEdges = [...edges].sort((a, b) => {
     const priorityA = edgePriority[a.type] || 99;
@@ -189,8 +194,16 @@ export function transformReportToGraph(report: ReportData): GraphData {
   });
 
   return {
-    nodes: nodes.slice(0, GRAPH_CONFIG.maxNodes),
-    edges: sortedEdges.slice(0, GRAPH_CONFIG.maxEdges),
+    nodes: nodes.slice(0, graphConfig.maxNodes),
+    edges: sortedEdges.slice(0, graphConfig.maxEdges),
+    truncated: {
+      nodes: nodes.length > graphConfig.maxNodes,
+      edges: sortedEdges.length > graphConfig.maxEdges,
+      nodeCount: nodes.length,
+      edgeCount: sortedEdges.length,
+      nodeLimit: graphConfig.maxNodes,
+      edgeLimit: graphConfig.maxEdges,
+    },
   };
 }
 

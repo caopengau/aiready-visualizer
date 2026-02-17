@@ -24,6 +24,7 @@ function App() {
   const [selectedNode, setSelectedNode] = useState<FileNode | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [truncatedWarning, setTruncatedWarning] = useState<{ nodes: boolean; edges: boolean } | null>(null);
 
   // Filter state - start with all visible
   const [visibleSeverities, setVisibleSeverities] = useState<Set<SeverityLevel>>(
@@ -51,7 +52,19 @@ function App() {
         return;
       }
 
-      setData(transformReportToGraph(reportData));
+      // Extract optional visualizer config from report (injected by CLI)
+      const visualizerConfig = (reportData as any).visualizerConfig;
+      const graphData = transformReportToGraph(reportData, visualizerConfig);
+      setData(graphData);
+      
+      // Show warning if graph was truncated
+      if (graphData.truncated?.nodes || graphData.truncated?.edges) {
+        setTruncatedWarning({
+          nodes: graphData.truncated.nodes,
+          edges: graphData.truncated.edges,
+        });
+      }
+      
       setLoading(false);
     };
 
@@ -147,6 +160,34 @@ function App() {
         setTheme={setTheme}
         data={filteredData}
       />
+
+      {/* Truncation warning banner */}
+      {truncatedWarning && (truncatedWarning.nodes || truncatedWarning.edges) && (
+        <div 
+          className="px-4 py-3 bg-yellow-50 border-b flex items-center justify-between"
+          style={{ borderColor: colors.panelBorder }}
+        >
+          <div className="flex-1">
+            <p className="text-sm text-yellow-800 font-medium">
+              ⚠️ Graph visualization truncated at display limits.
+              {truncatedWarning.nodes && ' Too many nodes.'}
+              {truncatedWarning.edges && ' Too many edges.'}
+            </p>
+            <p className="text-xs text-yellow-700 mt-1">
+              To show more data, increase graph limits in aiready.json:
+              <code className="bg-yellow-100 px-1 rounded" style={{ marginLeft: '4px' }}>
+                {'"visualizer": { "graph": { "maxNodes": 2000, "maxEdges": 5000 } }'}
+              </code>
+            </p>
+          </div>
+          <button
+            onClick={() => setTruncatedWarning(null)}
+            className="text-yellow-600 hover:text-yellow-800 ml-4 flex-shrink-0"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 overflow-hidden">
         <div ref={containerRef} className="flex-1 relative">
