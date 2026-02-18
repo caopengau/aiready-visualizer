@@ -150,14 +150,45 @@ interface GraphData {
 - Manual layout mode
 - Fit view & Reset layout
 
-## Architecture
+## 🏛️ Architecture
 
-This package follows the hub-and-spoke pattern:
+This package is a **middle spoke** that sits between CLI and Core - it consumes analysis results from other spokes and provides visualization capabilities:
 
 ```
-@aiready/core (HUB)
-    ↓
-@aiready/visualizer (SPOKE)
+                    🎯 USER
+                      │
+                      ▼
+            🎛️  CLI (orchestrator)
+                      │
+    ┌─────────────────┴─────────────────┐
+    │                                   │
+    ▼                                   ▼
+┌────────┐                        ┌────────┐
+│🎨 VIS- │                        │ ANALY- │
+│UALIZER │                        │  SIS   │
+│        │  ← YOU ARE HERE        │ SPOKES │
+│✅ Ready│                        │        │
+└────────┘                        └───┬────┘
+    │                                 │
+    │           ┌─────────────────────┼─────────────────────┐
+    │           ▼                     ▼                     ▼
+    │     ┌────────┐           ┌────────┐           ┌────────┐
+    │     │📊 PAT- │           │📦 CON- │           │🔧 CON- │
+    │     │TERN    │           │TEXT    │           │SISTENCY│
+    │     │DETECT  │           │ANALYZER│           │        │
+    │     │        │           │        │           │        │
+    │     │✅ Ready│           │✅ Ready│           │✅ Ready│
+    │     └────────┘           └────────┘           └────────┘
+    │           │                     │                     │
+    └───────────┴─────────────────────┴─────────────────────┘
+                            │
+                            ▼
+                  🏢 HUB (@aiready/core)
+```
+
+**Visualizer Internal Structure:**
+```
+@aiready/visualizer
     ├── Graph Builder (src/graph/)
     ├── Type Definitions (src/types.ts)
     ├── CLI Tool (src/cli.ts)
@@ -165,8 +196,6 @@ This package follows the hub-and-spoke pattern:
         └── @aiready/components
             ├── ForceDirectedGraph
             └── GraphControls
-    ↓
-@aiready/cli (HUB - integration)
 ```
 
 ## Directory Structure
