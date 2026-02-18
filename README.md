@@ -1,5 +1,7 @@
 # @aiready/visualizer
 
+[![npm](https://img.shields.io/npm/v/@aiready/visualizer)](https://www.npmjs.com/package/@aiready/visualizer) [![GitHub](https://img.shields.io/badge/GitHub-aiready--visualizer-blue?logo=github)](https://github.com/caopengau/aiready-visualizer)
+
 Interactive graph visualization for analysis results produced by `aiready-cli`.
 
 ## Overview
