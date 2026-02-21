@@ -1,28 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-
-/**
- * Find the latest aiready report
- */
-function findLatestReport(basePath) {
-  const aireadyDir = path.resolve(basePath, '.aiready');
-  if (!fs.existsSync(aireadyDir)) return null;
-  
-  const files = fs.readdirSync(aireadyDir)
-    .filter(f => f.startsWith('aiready-report-') && f.endsWith('.json'));
-  
-  if (files.length === 0) return null;
-  
-  const sorted = files
-    .map(f => ({
-      name: f,
-      path: path.resolve(aireadyDir, f),
-      mtime: fs.statSync(path.resolve(aireadyDir, f)).mtime
-    }))
-    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
-  
-  return sorted[0].path;
-}
+const { findLatestReport } = require('./report-utils');
 
 const basePath = path.resolve(process.cwd(), '..', '..');
 const reportPath = findLatestReport(basePath);

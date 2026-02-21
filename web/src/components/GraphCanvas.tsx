@@ -34,13 +34,13 @@ export function GraphCanvas({
 
     svg.selectAll('*').remove();
 
-    const g = svg.append('g');
+    const svgGroup = svg.append('g');
 
     // Setup zoom
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([GRAPH_CONFIG.zoomMin, GRAPH_CONFIG.zoomMax])
       .on('zoom', (event) => {
-        g.attr('transform', event.transform);
+        svgGroup.attr('transform', event.transform);
         zoomTransformRef.current = event.transform;
       });
     svg.call(zoom);
@@ -75,7 +75,7 @@ export function GraphCanvas({
       .force('y', d3.forceY(height / 2).strength(GRAPH_CONFIG.simulation.centerStrength));
 
     // Create link group
-    const linkGroup = g.append('g').attr('class', 'links');
+    const linkGroup = svgGroup.append('g').attr('class', 'links');
     const link = linkGroup
       .selectAll('line')
       .data(links)
@@ -86,7 +86,7 @@ export function GraphCanvas({
       .attr('stroke-width', (d: unknown) => getEdgeStrokeWidth((d as { type: string }).type));
 
     // Create node group
-    const nodeGroup = g.append('g').attr('class', 'nodes');
+    const nodeGroup = svgGroup.append('g').attr('class', 'nodes');
 
     const node = nodeGroup
       .selectAll('g')
