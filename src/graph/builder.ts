@@ -271,6 +271,26 @@ export class GraphBuilder {
       });
     });
 
+    // 4. Doc Drift
+    (report.docDrift?.issues || []).forEach((issue: any) => {
+      const file = issue.location?.file;
+      if (file) {
+        builder.addNode(file, 'Doc-Drift Issue', 5);
+        const sev = rankSeverity(issue.severity || null);
+        bumpIssue(file, sev);
+      }
+    });
+
+    // 5. Dependencies
+    (report.deps?.issues || []).forEach((issue: any) => {
+      const file = issue.location?.file;
+      if (file) {
+        builder.addNode(file, 'Dependency Issue', 5);
+        const sev = rankSeverity(issue.severity || null);
+        bumpIssue(file, sev);
+      }
+    });
+
     // Finalize nodes: assign colors and duplicate counts based on collected issue data
     const nodes = Array.from((builder as any).nodesMap.values()) as FileNode[];
     const edges = (builder as any).edges as DependencyEdge[];
