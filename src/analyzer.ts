@@ -11,7 +11,7 @@
  */
 
 import { readdirSync, statSync, readFileSync, existsSync } from 'fs';
-import { join, extname, basename } from 'path';
+import { join, extname } from 'path';
 import { parse } from '@typescript-eslint/typescript-estree';
 import type { TSESTree } from '@typescript-eslint/types';
 import { calculateTestabilityIndex } from '@aiready/core';

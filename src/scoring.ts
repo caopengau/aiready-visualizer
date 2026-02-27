@@ -1,4 +1,3 @@
-import { calculateTestabilityIndex } from '@aiready/core';
 import type { ToolScoringOutput } from '@aiready/core';
 import type { TestabilityReport } from './types';
 

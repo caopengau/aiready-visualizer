@@ -1,4 +1,4 @@
-import type { ScanOptions, Issue } from '@aiready/core';
+import type { Issue } from '@aiready/core';
 
 export interface TestabilityOptions {
   /** Root directory to scan */
