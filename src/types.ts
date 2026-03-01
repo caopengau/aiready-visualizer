@@ -2,6 +2,8 @@
  * Core types for graph visualization
  */
 
+import type { TokenBudget } from '@aiready/core';
+
 /**
  * Severity levels for issues
  */
@@ -138,6 +140,8 @@ export interface GraphMetadata {
   estimatedMonthlyCost?: number;
   estimatedDeveloperHours?: number;
   aiAcceptanceRate?: number;
+  /** AI token budget unit economics (v0.13+) */
+  tokenBudget?: TokenBudget;
 }
 
 /**
