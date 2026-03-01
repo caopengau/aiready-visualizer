@@ -83,8 +83,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: 'https://getaiready.dev/logo-text.png',
-        width: 2046,
-        height: 800,
+        width: 1200,
+        height: 630,
         alt: 'AIReady - AI-Ready Codebase Tools',
       },
     ],
