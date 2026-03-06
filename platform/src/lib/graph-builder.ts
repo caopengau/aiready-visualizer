@@ -271,15 +271,16 @@ export class GraphBuilder {
     });
 
     // 2. Context & Dependencies (The "Knowledge" part)
-    const contextData = raw.contextAnalyzer || raw.context || {};
-    const ctxDetails =
-      breakdown.contextFragmentation?.details ||
-      contextData.results ||
-      contextData.issues ||
-      (Array.isArray(contextData) ? contextData : []) ||
-      raw.results ||
-      [];
-    const chains = contextData.summary?.chains || contextData.chains || [];
+    // The raw contextAnalyzer output has per-file tokenCost data.
+    // The normalized breakdown.contextFragmentation.details only has issue messages (no file/cost).
+    // So we always prefer rawOutput.contextAnalyzer.results.
+    const rawCtxData = raw.contextAnalyzer || raw.context || {};
+    const ctxResults: any[] =
+      rawCtxData.results ||
+      rawCtxData.issues ||
+      (Array.isArray(rawCtxData) ? rawCtxData : []);
+
+    const chains = rawCtxData.summary?.chains || rawCtxData.chains || [];
 
     // Build comprehensive token cost map from all sources
     const fileTokenCosts = new Map<string, number>();
@@ -294,26 +295,23 @@ export class GraphBuilder {
       }
     });
 
-    // Source 2: ctxDetails items
-    ctxDetails.forEach((ctx: any) => {
+    // Source 2: ctxResults items (primary source - each has file + tokenCost)
+    ctxResults.forEach((ctx: any) => {
       const file = ctx.file || ctx.fileName;
       if (!file) return;
       const cleanFile = builder.cleanPath(file);
-      const cost = ctx.contextBudget || ctx.tokenCost || ctx.contextCost;
-      if (cost && !fileTokenCosts.has(cleanFile)) {
+      const cost = ctx.tokenCost || ctx.contextBudget || ctx.contextCost;
+      if (cost != null && !fileTokenCosts.has(cleanFile)) {
         fileTokenCosts.set(cleanFile, cost);
       }
     });
 
-    ctxDetails.forEach((ctx: any) => {
+    // Process each file from context results for graph nodes + dependency edges
+    ctxResults.forEach((ctx: any) => {
       const file = ctx.file || ctx.fileName;
       if (!file) return;
       const cleanFile = builder.cleanPath(file);
-      const contextBudget =
-        ctx.contextBudget ||
-        ctx.tokenCost ||
-        ctx.contextCost ||
-        fileTokenCosts.get(cleanFile);
+      const contextBudget = fileTokenCosts.get(cleanFile);
 
       processFileNode(
         file,
