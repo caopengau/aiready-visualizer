@@ -8,7 +8,7 @@ describe('Consistency Scoring', () => {
       const result = calculateConsistencyScore([], 100);
 
       expect(result.score).toBe(100);
-      expect(result.toolName).toBe('consistency');
+      expect(result.toolName).toBe('naming-consistency');
       expect(result.rawMetrics.totalIssues).toBe(0);
       expect(result.recommendations).toHaveLength(0);
     });

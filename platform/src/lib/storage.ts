@@ -308,11 +308,12 @@ export function normalizeReport(
     'architecture-inconsistency': ToolName.NamingConsistency,
     'magic-literal': ToolName.AiSignalClarity,
     'boolean-trap': ToolName.AiSignalClarity,
-    'ai-signal-clarity': ToolName.AiSignalClarity,
-    'low-testability': ToolName.TestabilityIndex,
     'agent-navigation-failure': ToolName.AgentGrounding,
     'ambiguous-api': ToolName.AiSignalClarity,
     'change-amplification': ToolName.ChangeAmplification,
+    // Very old legacy keys
+    semanticDuplicates: ToolName.PatternDetect,
+    contextFragmentation: ToolName.ContextAnalyzer,
   };
 
   const breakdown: any = {};
