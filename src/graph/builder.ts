@@ -250,8 +250,17 @@ export class GraphBuilder {
       report[ToolName.PatternDetect] ||
       report.patternDetect ||
       report.patterns ||
-      report;
-    const duplicates = patternData.duplicates || report.duplicates || [];
+      {};
+
+    // In unified reports, duplicates are often under summary.
+    // We check both root of tool data and summary.
+    const duplicates =
+      (Array.isArray(patternData.duplicates) ? patternData.duplicates : null) ||
+      (patternData.summary && Array.isArray(patternData.summary.duplicates)
+        ? patternData.summary.duplicates
+        : null) ||
+      (Array.isArray(report.duplicates) ? report.duplicates : []);
+
     duplicates.forEach((dup: any) => {
       builder.addNode(dup.file1, 'Similarity target', 5);
       builder.addNode(dup.file2, 'Similarity target', 5);
