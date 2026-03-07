@@ -1,5 +1,28 @@
 import * as vscode from 'vscode';
-import { Severity, FRIENDLY_TOOL_NAMES } from '@aiready/core';
+
+// Inlined from @aiready/core to avoid bundling the entire package in the VSIX
+export enum Severity {
+  Critical = 'critical',
+  Major = 'major',
+  Minor = 'minor',
+  Info = 'info',
+}
+
+export const FRIENDLY_TOOL_NAMES: Record<string, string> = {
+  'pattern-detect': 'Semantic Duplicates',
+  'context-analyzer': 'Context Fragmentation',
+  'naming-consistency': 'Naming Consistency',
+  'ai-signal-clarity': 'AI Signal Clarity',
+  'agent-grounding': 'Agent Grounding',
+  'testability-index': 'Testability Index',
+  'doc-drift': 'Documentation Health',
+  'dependency-health': 'Dependency Health',
+  'change-amplification': 'Change Amplification',
+  'cognitive-load': 'Cognitive Load',
+  'pattern-entropy': 'Pattern Entropy',
+  'concept-cohesion': 'Concept Cohesion',
+  'semantic-distance': 'Semantic Distance',
+};
 
 export interface Issue {
   message: string;
@@ -80,13 +103,10 @@ export class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.Tre
   private getSeverityIcon(severity: string): string {
     switch (severity) {
       case Severity.Critical:
-      case 'critical':
         return 'error';
       case Severity.Major:
-      case 'major':
         return 'warning';
       case Severity.Minor:
-      case 'minor':
         return 'info';
       default:
         return 'circle-outline';
