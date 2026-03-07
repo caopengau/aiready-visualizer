@@ -15,6 +15,7 @@ import {
   calculateTestabilityIndex,
   Severity,
   IssueType,
+  emitProgress,
 } from '@aiready/core';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -306,10 +307,12 @@ export async function analyzeTestability(
   let processed = 0;
   for (const f of sourceFiles) {
     processed++;
-    options.onProgress?.(
+    emitProgress(
       processed,
       sourceFiles.length,
-      `testability: analyzing files`
+      'testability',
+      'analyzing files',
+      options.onProgress
     );
 
     const a = analyzeFileTestability(f);
