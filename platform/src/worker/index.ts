@@ -15,6 +15,7 @@ import {
 import {
   createAnalysis,
   getRepository,
+  getUser,
   updateRepositoryScore,
   setRepositoryScanning,
 } from '../lib/db';
