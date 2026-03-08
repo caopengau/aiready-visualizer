@@ -133,6 +133,8 @@ export async function saveMetricPoints(params: {
           timestamp: params.timestamp,
           GSI3PK: `METRIC#${type}`,
           GSI3SK: params.timestamp,
+          GSI4PK: `METRIC#${params.repoId}#${type}`,
+          GSI4SK: params.timestamp,
         },
       })
     );

@@ -1,0 +1,22 @@
+{
+  "name": "@aiready/agents",
+  "version": "0.1.0",
+  "description": "Agentic remediation and analysis system for AIReady",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "mastra": "^0.1.0",
+    "zod": "^3.0.0",
+    "@aiready/core": "workspace:*",
+    "@aiready/cli": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@types/node": "^20.0.0"
+  }
+}

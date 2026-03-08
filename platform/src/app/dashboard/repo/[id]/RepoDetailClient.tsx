@@ -21,7 +21,8 @@ import { BusinessImpact } from './components/BusinessImpact';
 import { RemediationQueue } from './components/RemediationQueue';
 import { MethodologyPanel } from '@/components/MethodologyPanel';
 import CodeBlock from '@/components/CodeBlock';
-import { metrics } from '@/app/metrics/constants';
+import { metrics as metricDefinitions } from '@/app/metrics/constants';
+import { TrendCharts } from './components/TrendCharts';
 
 interface Props {
   repo: Repository;
@@ -52,6 +53,7 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
   const [currentPage, setCurrentPage] = useState(1);
   const [showMethodology, setShowMethodology] = useState(false);
   const [showConfig, setShowConfig] = useState(false);
+  const [historicalMetrics, setHistoricalMetrics] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'insights' | 'remediation'>(
     'insights'
   );
@@ -75,7 +77,20 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
 
   useEffect(() => {
     fetchLatestAnalysis();
+    fetchHistoricalMetrics();
   }, [repo.id]);
+
+  async function fetchHistoricalMetrics() {
+    try {
+      const res = await fetch(`/api/repos/${repo.id}/metrics?limit=100`);
+      const data = await res.json();
+      if (res.ok) {
+        setHistoricalMetrics(data.metrics || []);
+      }
+    } catch (err) {
+      console.error('Error fetching historical metrics:', err);
+    }
+  }
 
   async function fetchLatestAnalysis() {
     try {
@@ -220,7 +235,7 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
     info: 'text-slate-400 border-slate-500/30 bg-slate-500/10',
   };
 
-  const selectedMetric = metrics.find((m) => {
+  const selectedMetric = metricDefinitions.find((m) => {
     // Map camelCase tool names to kebab-case metric IDs
     const mappedId = selectedTool
       ?.replace(/([a-z])([A-Z])/g, '$1-$2')
@@ -364,6 +379,10 @@ function RepoDetailContent({ repo, user, teams, overallScore }: Props) {
                       businessImpact={analysis.summary.businessImpact}
                       aiScore={analysis.summary.aiReadinessScore}
                     />
+
+                    {historicalMetrics.length > 1 && (
+                      <TrendCharts metrics={historicalMetrics} />
+                    )}
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                       <div className="lg:col-span-3">

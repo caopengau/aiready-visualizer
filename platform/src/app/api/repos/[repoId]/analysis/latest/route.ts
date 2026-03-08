@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/api/auth/[...nextauth]/route';
 import { getRepository, getLatestAnalysis } from '@/lib/db';
 import { getAnalysis, normalizeReport } from '@/lib/storage';
+import { seedInitialRemediations } from '@/lib/db/seed-remediations';
 
 export async function GET(
   request: NextRequest,
@@ -42,6 +43,9 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Seed initial remediations for alpha demo
+    await seedInitialRemediations(repoId, session.user.id);
 
     const fullAnalysis = await getAnalysis(latestAnalysisRecord.rawKey);
     if (!fullAnalysis) {

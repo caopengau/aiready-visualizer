@@ -109,7 +109,18 @@ export interface RemediationRequest {
   userId: string;
   type: 'consolidation' | 'rename' | 'restructure' | 'refactor';
   risk: Severity | 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'reviewing' | 'approved' | 'rejected' | 'completed';
+  status:
+    | 'pending'
+    | 'in-progress'
+    | 'reviewing'
+    | 'approved'
+    | 'rejected'
+    | 'completed'
+    | 'pr-created'
+    | 'failed';
+  agentStatus?: string;
+  prUrl?: string;
+  prNumber?: number;
   title: string;
   description: string;
   affectedFiles: string[];
