@@ -9,7 +9,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "mastra": "^0.1.0",
+    "mastra": "^0.18.0",
     "zod": "^3.0.0",
     "@aiready/core": "workspace:*",
     "@aiready/cli": "workspace:*"
