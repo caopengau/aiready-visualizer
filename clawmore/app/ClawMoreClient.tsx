@@ -76,6 +76,12 @@ export default function ClawMoreClient({ apiUrl }: ClawMoreClientProps) {
             >
               <Zap className="w-3 h-3" /> Pricing
             </Link>
+            <Link
+              href="/blog"
+              className="hover:text-cyber-purple transition-colors flex items-center gap-1.5"
+            >
+              <Activity className="w-3 h-3" /> Blog
+            </Link>
             <div className="flex items-center gap-4 pl-4 border-l border-white/10">
               <Link
                 href="https://github.com/caopengau/serverlessclaw"
