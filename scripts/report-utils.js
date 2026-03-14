@@ -1,6 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const REPORT_NAME_PATTERN = /^aiready-(report|scan)-.*\.json$/;
+
 /**
  * Find the latest aiready report
  * @param {string} basePath - The base path to search for .aiready directory
@@ -10,21 +12,24 @@ function findLatestReport(basePath) {
   const aireadyDir = path.resolve(basePath, '.aiready');
   if (!fs.existsSync(aireadyDir)) return null;
 
-  const files = fs
-    .readdirSync(aireadyDir)
-    .filter((f) => f.startsWith('aiready-report-') && f.endsWith('.json'));
+  let latestPath = null;
+  let latestMtime = -1;
 
-  if (files.length === 0) return null;
+  const entries = fs.readdirSync(aireadyDir, { withFileTypes: true });
+  for (const entry of entries) {
+    if (!entry.isFile() || !REPORT_NAME_PATTERN.test(entry.name)) {
+      continue;
+    }
 
-  const sorted = files
-    .map((f) => ({
-      name: f,
-      path: path.resolve(aireadyDir, f),
-      mtime: fs.statSync(path.resolve(aireadyDir, f)).mtime,
-    }))
-    .sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
+    const candidatePath = path.resolve(aireadyDir, entry.name);
+    const mtime = fs.statSync(candidatePath).mtimeMs;
+    if (mtime > latestMtime) {
+      latestMtime = mtime;
+      latestPath = candidatePath;
+    }
+  }
 
-  return sorted[0].path;
+  return latestPath;
 }
 
 module.exports = { findLatestReport };
