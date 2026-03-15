@@ -1,45 +1,6 @@
-// Types for the visualization
+import type { GraphNode, GraphEdge, GraphData, BusinessMetrics } from '@aiready/core/client';
 
-/**
- * Business impact metrics (v0.10+)
- */
-export interface BusinessMetrics {
-  estimatedMonthlyCost?: number;
-  estimatedDeveloperHours?: number;
-  aiAcceptanceRate?: number;
-  aiReadinessScore?: number;
-}
-
-export interface FileNode {
-  id: string;
-  label: string;
-  value: number;
-  color: string;
-  title: string;
-  duplicates?: number;
-  tokenCost?: number;
-  severity?: string;
-}
-
-export interface GraphEdge {
-  source: string;
-  target: string;
-  type: string;
-}
-
-export interface GraphData {
-  nodes: FileNode[];
-  edges: GraphEdge[];
-  truncated?: {
-    nodes: boolean;
-    edges: boolean;
-    nodeCount: number;
-    edgeCount: number;
-    nodeLimit: number;
-    edgeLimit: number;
-  };
-  metadata?: BusinessMetrics;
-}
+export type { GraphNode as FileNode, GraphEdge, GraphData, BusinessMetrics };
 
 // Filter types
 export type SeverityLevel = 'critical' | 'major' | 'minor' | 'info';
