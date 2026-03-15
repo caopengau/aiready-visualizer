@@ -111,6 +111,10 @@ export class GraphBuilder {
         minorIssues: 0,
         infoIssues: 0,
       },
+      truncated: {
+        nodes: false,
+        edges: false,
+      },
     };
   }
 
@@ -432,6 +436,10 @@ export class GraphBuilder {
         minorIssues,
         infoIssues,
         tokenBudget: report.scoring?.tokenBudget,
+      },
+      truncated: {
+        nodes: false,
+        edges: false,
       },
     };
 

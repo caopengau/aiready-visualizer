@@ -64,9 +64,9 @@ export interface FileNode extends BaseGraphNode, GraphNode {
 /**
  * Dependency edge between files
  */
-export interface DependencyEdge extends BaseGraphLink, GraphEdge {
-  source: string | FileNode;
-  target: string | FileNode;
+export interface DependencyEdge extends GraphEdge {
+  source: string;
+  target: string;
 
   // Edge properties
   type?: 'import' | 'require' | 'dynamic' | any;
@@ -141,6 +141,15 @@ export interface GraphMetadata extends CoreGraphMetadata {
   aiReadinessScore?: number;
   /** AI token budget unit economics (v0.13+) */
   tokenBudget?: TokenBudget;
+  /** Truncation info (v0.12+) */
+  truncated?: {
+    nodes: boolean;
+    edges: boolean;
+    nodeCount?: number;
+    edgeCount?: number;
+    nodeLimit?: number;
+    edgeLimit?: number;
+  };
 }
 
 /**

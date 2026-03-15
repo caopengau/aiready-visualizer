@@ -278,8 +278,8 @@ export function transformReportToGraph(
     related: 3,
   };
   const sortedEdges = [...edges].sort((a, b) => {
-    const priorityA = edgePriority[a.type] || 99;
-    const priorityB = edgePriority[b.type] || 99;
+    const priorityA = a.type ? edgePriority[a.type] || 99 : 99;
+    const priorityB = b.type ? edgePriority[b.type] || 99 : 99;
     return priorityA - priorityB;
   });
 

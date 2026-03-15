@@ -21,7 +21,7 @@ export default defineConfig(async ({ command }) => {
     }
   }
 
-  const plugins: any[] = [react(), tailwindcss()];
+  const plugins: any[] = [react() /*, tailwindcss()*/];
   // Dev-time middleware: if the CLI sets AIREADY_REPORT_PATH when spawning Vite,
   // serve that file at /report-data.json so the client can fetch the report
   // directly from the consumer working directory without copying into node_modules.
@@ -79,6 +79,8 @@ export default defineConfig(async ({ command }) => {
     plugins,
     build: {
       outDir: 'dist',
+      minify: false,
+      sourcemap: true,
       emptyOutDir: true,
       rollupOptions: {
         output: {
