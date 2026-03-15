@@ -52,7 +52,7 @@ help: ## Show all targets and descriptions in a markdown table (one aligned tabl
 
 pre-commit: ## Run pre-commit checks (lint-staged, build, check)
 	@$(call log_step,Running pre-commit checks...)
-	@if ! $(MAKE) lint-staged; then \
+	@if ! $(MAKE) QUIET=1 lint-staged; then \
 		$(call separator,$(RED)); \
 		$(call log_error,make lint-staged failed); \
 		$(call separator,$(RED)); \
@@ -61,7 +61,7 @@ pre-commit: ## Run pre-commit checks (lint-staged, build, check)
 		echo ""; \
 		exit 1; \
 	fi
-	@if ! $(MAKE) $(MAKE_PARALLEL) build check; then \
+	@if ! $(MAKE) $(MAKE_PARALLEL) QUIET=1 build check; then \
 		$(call separator,$(RED)); \
 		$(call log_error,build or check failed); \
 		$(call separator,$(RED)); \
@@ -82,4 +82,4 @@ pre-push: ## Run pre-push checks (AIReady scan)
 
 lint-staged: ## Run lint-staged on changed files
 	@$(call log_info,Running lint-staged...)
-	@$(PNPM) lint-staged
+	@$(PNPM) $(SILENT_PNPM) lint-staged

@@ -110,11 +110,11 @@ INDENT_CLEAR       := \r\033[K
 # Logging macros
 # Usage: $(call log_info,Message)
 define log_info
-	printf '$(INDENT_CLEAR)[INFO] %s$(RESET_COLOR)\n' "$(1)"
+	$(if $(QUIET),,printf '$(INDENT_CLEAR)[INFO] %s$(RESET_COLOR)\n' "$(1)")
 endef
 
 define log_success
-	printf '$(GREEN)$(INDENT_CLEAR)[SUCCESS] %s$(RESET_COLOR)\n' "$(1)"
+	$(if $(QUIET),,printf '$(GREEN)$(INDENT_CLEAR)[SUCCESS] %s$(RESET_COLOR)\n' "$(1)")
 endef
 
 define log_warning
@@ -126,7 +126,7 @@ define log_error
 endef
 
 define log_step
-	printf '$(LIGHTBLUE)$(INDENT_CLEAR)[STEP] %s$(RESET_COLOR)\n' "$(1)"
+	$(if $(QUIET),,printf '$(LIGHTBLUE)$(INDENT_CLEAR)[STEP] %s$(RESET_COLOR)\n' "$(1)")
 endef
 
 define log_debug
@@ -150,6 +150,7 @@ endif
 
 # Default pnpm silent flag (can be overridden by caller)
 SILENT_PNPM ?= --silent
+SILENT_TURBO ?= --output-logs=errors-only
 
 # Purpose: Time the execution of a target command
 # Usage: $(call track_time,command,label)
