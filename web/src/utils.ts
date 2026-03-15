@@ -310,10 +310,10 @@ export async function loadReportData(): Promise<ReportData | null> {
     try {
       const response = await fetch(path);
       if (response.ok) {
-        const data = await response.json();
+        const reportData = await response.json();
         // If it's a unified report, it might be nested under 'results' if it was a deep clone 
         // but typically unified report IS the data.
-        return data;
+        return reportData;
       }
     } catch {
       continue;
