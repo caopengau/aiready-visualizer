@@ -10,11 +10,39 @@ import type { ToolScoringOutput } from '@aiready/core';
 import type { ContextSummary } from './types';
 
 /**
- * Calculate AI Readiness Score for context efficiency (0-100)
+ * Thresholds and weights for context efficiency scoring.
+ */
+const BUDGET_EXCELLENT_THRESHOLD = 8000;
+const BUDGET_PENALTY_RATE = 200;
+const DEPTH_EXCELLENT_THRESHOLD = 8;
+const DEPTH_PENALTY_WEIGHT = 5;
+const FRAGMENTATION_EXCELLENT_THRESHOLD = 0.5;
+const FRAGMENTATION_PENALTY_WEIGHT = 100;
+const MAX_CRITICAL_PENALTY = 20;
+const CRITICAL_ISSUE_WEIGHT = 3;
+const MAX_MAJOR_PENALTY = 15;
+const MAJOR_ISSUE_WEIGHT = 1;
+const EXTREME_FILE_THRESHOLD = 15000;
+const MAX_EXTREME_PENALTY = 20;
+const EXTREME_PENALTY_DIVISOR = 500;
+const FRAGMENTATION_BONUS_THRESHOLD = 0.2;
+const ORGANIZATION_BONUS = 5;
+const MAX_TOTAL_PENALTY = 30;
+
+const WEIGHT_BUDGET = 0.35;
+const WEIGHT_DEPTH = 0.25;
+const WEIGHT_FRAGMENTATION = 0.25;
+
+/**
+ * Calculate AI Readiness Score for context efficiency (0-100).
+ *
+ * Evaluates how efficiently an AI model can process the project's code context
+ * based on token budgets, import depth, and file fragmentation.
  *
  * @param summary - Consolidated context summary from the scan.
  * @param costConfig - Optional configuration for business value calculations.
  * @returns Standardized scoring output for the context analyzer tool.
+ * @lastUpdated 2026-03-18
  */
 export function calculateContextScore(
   summary: ContextSummary,
@@ -33,54 +61,90 @@ export function calculateContextScore(
 
   // More reasonable thresholds for modern codebases
   const budgetScore =
-    avgContextBudget < 8000
+    avgContextBudget < BUDGET_EXCELLENT_THRESHOLD
       ? 100
-      : Math.max(0, 100 - (avgContextBudget - 8000) / 200);
+      : Math.max(
+          0,
+          100 -
+            (avgContextBudget - BUDGET_EXCELLENT_THRESHOLD) /
+              BUDGET_PENALTY_RATE
+        );
 
   const depthScore =
-    avgImportDepth < 8 ? 100 : Math.max(0, 100 - (avgImportDepth - 8) * 5);
+    avgImportDepth < DEPTH_EXCELLENT_THRESHOLD
+      ? 100
+      : Math.max(
+          0,
+          100 -
+            (avgImportDepth - DEPTH_EXCELLENT_THRESHOLD) * DEPTH_PENALTY_WEIGHT
+        );
 
   const fragmentationScore =
-    avgFragmentation < 0.5
+    avgFragmentation < FRAGMENTATION_EXCELLENT_THRESHOLD
       ? 100
-      : Math.max(0, 100 - (avgFragmentation - 0.5) * 100);
+      : Math.max(
+          0,
+          100 -
+            (avgFragmentation - FRAGMENTATION_EXCELLENT_THRESHOLD) *
+              FRAGMENTATION_PENALTY_WEIGHT
+        );
 
   // Cap penalties to prevent score going to 0
-  const criticalPenalty = Math.min(20, criticalIssues * 3); // Max 20 points
-  const majorPenalty = Math.min(15, majorIssues * 1); // Max 15 points
+  const criticalPenalty = Math.min(
+    MAX_CRITICAL_PENALTY,
+    criticalIssues * CRITICAL_ISSUE_WEIGHT
+  );
+  const majorPenalty = Math.min(
+    MAX_MAJOR_PENALTY,
+    majorIssues * MAJOR_ISSUE_WEIGHT
+  );
 
   const maxBudgetPenalty =
-    maxContextBudget > 15000
-      ? Math.min(20, (maxContextBudget - 15000) / 500)
+    maxContextBudget > EXTREME_FILE_THRESHOLD
+      ? Math.min(
+          MAX_EXTREME_PENALTY,
+          (maxContextBudget - EXTREME_FILE_THRESHOLD) / EXTREME_PENALTY_DIVISOR
+        )
       : 0;
 
   // Add bonus for well-organized codebases
   let bonus = 0;
-  if (criticalIssues === 0 && majorIssues === 0 && avgFragmentation < 0.2) {
-    bonus = 5; // Well-organized codebase bonus
+  if (
+    criticalIssues === 0 &&
+    majorIssues === 0 &&
+    avgFragmentation < FRAGMENTATION_BONUS_THRESHOLD
+  ) {
+    bonus = ORGANIZATION_BONUS;
   }
 
   const rawScore =
-    budgetScore * 0.35 + depthScore * 0.25 + fragmentationScore * 0.25 + bonus;
+    budgetScore * WEIGHT_BUDGET +
+    depthScore * WEIGHT_DEPTH +
+    fragmentationScore * WEIGHT_FRAGMENTATION +
+    bonus;
   const finalScore =
-    rawScore - Math.min(30, criticalPenalty + majorPenalty) - maxBudgetPenalty;
+    rawScore -
+    Math.min(MAX_TOTAL_PENALTY, criticalPenalty + majorPenalty) -
+    maxBudgetPenalty;
 
   const score = Math.max(0, Math.min(100, Math.round(finalScore)));
 
   const factors = [
     {
       name: 'Context Budget',
-      impact: Math.round(budgetScore * 0.35 - 35),
-      description: `Avg ${Math.round(avgContextBudget)} tokens per file ${avgContextBudget < 8000 ? '(excellent)' : avgContextBudget < 12000 ? '(acceptable)' : '(high)'}`,
+      impact: Math.round(budgetScore * WEIGHT_BUDGET - WEIGHT_BUDGET * 100),
+      description: `Avg ${Math.round(avgContextBudget)} tokens per file ${avgContextBudget < BUDGET_EXCELLENT_THRESHOLD ? '(excellent)' : avgContextBudget < 12000 ? '(acceptable)' : '(high)'}`,
     },
     {
       name: 'Import Depth',
-      impact: Math.round(depthScore * 0.25 - 25),
-      description: `Avg ${avgImportDepth.toFixed(1)} levels ${avgImportDepth < 8 ? '(excellent)' : avgImportDepth < 12 ? '(acceptable)' : '(deep)'}`,
+      impact: Math.round(depthScore * WEIGHT_DEPTH - WEIGHT_DEPTH * 100),
+      description: `Avg ${avgImportDepth.toFixed(1)} levels ${avgImportDepth < DEPTH_EXCELLENT_THRESHOLD ? '(excellent)' : avgImportDepth < 12 ? '(acceptable)' : '(deep)'}`,
     },
     {
       name: 'Fragmentation',
-      impact: Math.round(fragmentationScore * 0.25 - 25),
+      impact: Math.round(
+        fragmentationScore * WEIGHT_FRAGMENTATION - WEIGHT_FRAGMENTATION * 100
+      ),
       description: `${(avgFragmentation * 100).toFixed(0)}% fragmentation ${avgFragmentation < 0.3 ? '(well-organized)' : avgFragmentation < 0.5 ? '(moderate)' : '(high)'}`,
     },
   ];
