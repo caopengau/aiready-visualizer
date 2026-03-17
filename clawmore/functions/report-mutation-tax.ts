@@ -24,7 +24,16 @@ export const handler = async (event: any) => {
     });
 
     const response = await docClient.send(getCommand);
-    const subscriptionItemId = response.Item?.stripeMutationSubscriptionItemId;
+    const item = response.Item;
+    const subscriptionItemId = item?.stripeMutationSubscriptionItemId;
+    const coEvolutionOptIn = item?.coEvolutionOptIn;
+
+    if (coEvolutionOptIn) {
+      console.log(
+        `User ${userId} has opted into co-evolution. Mutation tax waived for mutation ${mutationId}.`
+      );
+      return;
+    }
 
     if (!subscriptionItemId) {
       console.warn(

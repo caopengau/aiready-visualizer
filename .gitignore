@@ -88,3 +88,6 @@ packages/visualizer/web/report-data.json
 landing/next-env.d.ts
 next-env.d.ts
 vscode-extension/.env
+
+# Ejected projects
+serverlessclaw/

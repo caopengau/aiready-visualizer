@@ -159,6 +159,7 @@ deploy-platform-prod: verify-aws-account ## Deploy platform to AWS (production)
 		AWS_PROFILE=$(AWS_PROFILE) pnpm run deploy:prod
 	@$(call log_success,Platform deployed to production)
 
+
 ##@ Email (SES)
 
 ses-domain-status: verify-aws-account ## Show SES domain identity status for DOMAIN_NAME

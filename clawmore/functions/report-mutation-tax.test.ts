@@ -88,4 +88,32 @@ describe('report-mutation-tax handler', () => {
 
     consoleSpy.mockRestore();
   });
+
+  it('should waive the mutation tax and not report usage if user has opted into co-evolution', async () => {
+    const event = {
+      detail: {
+        userId: 'user_123',
+        mutationId: 'mut_456',
+      },
+    };
+
+    mockSend.mockResolvedValueOnce({
+      Item: {
+        stripeMutationSubscriptionItemId: 'si_789',
+        coEvolutionOptIn: true,
+      },
+    } as any);
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await handler(event);
+
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'User user_123 has opted into co-evolution. Mutation tax waived for mutation mut_456.'
+      )
+    );
+    expect(mockReportMeteredUsage).not.toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
 });
