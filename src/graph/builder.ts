@@ -37,8 +37,8 @@ export class GraphBuilder {
     const reAbs = /\/(?:[\w\-.]+\/)+[\w\-.]+\.(?:ts|tsx|js|jsx|py|java|go)/g;
     const reRel =
       /(?:\.\/|\.\.\/)(?:[\w\-.]+\/)+[\w\-.]+\.(?:ts|tsx|js|jsx|py|java|go)/g;
-    const abs = (message.match(reAbs) || []) as string[];
-    const rel = (message.match(reRel) || []) as string[];
+    const abs = (message.match(reAbs) ?? []) as string[];
+    const rel = (message.match(reRel) ?? []) as string[];
     return abs.concat(rel);
   }
 
@@ -71,7 +71,7 @@ export class GraphBuilder {
         path: id,
         label: this.normalizeLabel(id),
         title,
-        size: value || 1,
+        size: value ?? 1,
       } as any;
       this.nodesMap.set(id, node as FileNode);
     } else {
@@ -79,7 +79,7 @@ export class GraphBuilder {
       if (title && (!node.title || !node.title.includes(title))) {
         node.title = (node.title ? node.title + '\n' : '') + title;
       }
-      if (value > (node.size || 0)) node.size = value;
+      if (value > (node.size ?? 0)) node.size = value;
     }
   }
 
@@ -192,19 +192,19 @@ export class GraphBuilder {
     const getResults = (toolKey: string, legacyKey?: string) => {
       const camelKey = toolKey.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
       const toolData =
-        report[toolKey] ||
-        report[camelKey] ||
+        report[toolKey] ??
+        report[camelKey] ??
         (legacyKey ? report[legacyKey] : undefined);
       if (!toolData) return [];
       if (Array.isArray(toolData)) return toolData;
-      return toolData.results || toolData.issues || [];
+      return toolData.results ?? toolData.issues ?? [];
     };
 
     // Pre-scan for basenames
     const basenameMap = new Map<string, Set<string>>();
     const patternResults = getResults(ToolName.PatternDetect, 'patterns');
     patternResults.forEach((p: any) => {
-      const fileName = p.fileName || p.file;
+      const fileName = p.fileName ?? p.file;
       if (fileName) {
         const base = path.basename(fileName);
         if (!basenameMap.has(base)) basenameMap.set(base, new Set());
@@ -214,26 +214,26 @@ export class GraphBuilder {
 
     // 1. Process patterns
     patternResults.forEach((entry: any) => {
-      const file = entry.fileName || entry.file;
+      const file = entry.fileName ?? entry.file;
       if (!file) return;
 
       builder.addNode(
         file,
-        `Issues: ${(entry.issues || []).length}`,
-        (entry.metrics && entry.metrics.tokenCost) || 5
+        `Issues: ${(entry.issues ?? []).length}`,
+        entry.metrics?.tokenCost ?? 5
       );
 
       // record aggregate for this file
-      if ((entry.issues || []).length > 0) {
-        (entry.issues || []).forEach((issue: any) => {
+      if ((entry.issues ?? []).length > 0) {
+        (entry.issues ?? []).forEach((issue: any) => {
           const sev = rankSeverity(
-            issue.severity || issue.severityLevel || null
+            issue.severity ?? issue.severityLevel ?? null
           );
           bumpIssue(file, sev);
         });
       }
 
-      (entry.issues || []).forEach((issue: any) => {
+      (entry.issues ?? []).forEach((issue: any) => {
         const message = issue.message || '';
 
         // Path extraction
@@ -305,7 +305,7 @@ export class GraphBuilder {
     const contextResults = getResults(ToolName.ContextAnalyzer, 'context');
     contextResults.forEach((ctx: any) => {
       // Handle context analyzer results (which use 'file' instead of 'fileName')
-      const file = ctx.fileName || ctx.file;
+      const file = ctx.fileName ?? ctx.file;
       if (!file) return;
 
       builder.addNode(file, `Deps: ${ctx.dependencyCount || 0}`, 10);
@@ -316,14 +316,14 @@ export class GraphBuilder {
           const sev = rankSeverity(
             typeof issue === 'string'
               ? ctx.severity
-              : issue.severity || issue.severityLevel || null
+              : (issue.severity ?? issue.severityLevel ?? null)
           );
           bumpIssue(file, sev);
         });
       }
 
       // Add related files
-      (ctx.relatedFiles || []).forEach((rel: string) => {
+      (ctx.relatedFiles ?? []).forEach((rel: string) => {
         const resolvedRel = path.isAbsolute(rel)
           ? rel
           : path.resolve(path.dirname(file), rel);
@@ -349,7 +349,7 @@ export class GraphBuilder {
 
       const absoluteFile = path.resolve(builder.rootDir, file);
       const fileDir = path.dirname(absoluteFile);
-      (ctx.dependencyList || []).forEach((dep: string) => {
+      (ctx.dependencyList ?? []).forEach((dep: string) => {
         if (dep.startsWith('.') || dep.startsWith('/')) {
           const possiblePaths = [
             path.resolve(fileDir, dep),
@@ -373,10 +373,10 @@ export class GraphBuilder {
     // 4. Doc Drift
     const docDriftResults = getResults(ToolName.DocDrift, 'docDrift');
     docDriftResults.forEach((issue: any) => {
-      const file = issue.fileName || issue.location?.file;
+      const file = issue.fileName ?? issue.location?.file;
       if (file) {
         builder.addNode(file, 'Doc-Drift Issue', 5);
-        const sev = rankSeverity(issue.severity || null);
+        const sev = rankSeverity(issue.severity ?? null);
         bumpIssue(file, sev);
       }
     });
@@ -387,10 +387,10 @@ export class GraphBuilder {
       'dependencyHealth'
     );
     depsResults.forEach((issue: any) => {
-      const file = issue.fileName || issue.location?.file;
+      const file = issue.fileName ?? issue.location?.file;
       if (file) {
         builder.addNode(file, 'Dependency Issue', 5);
-        const sev = rankSeverity(issue.severity || null);
+        const sev = rankSeverity(issue.severity ?? null);
         bumpIssue(file, sev);
       }
     });
