@@ -1,0 +1,215 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AIReady Configuration Schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "URL to the AIReady configuration schema"
+    },
+    "threshold": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Target quality score threshold (0-100)"
+    },
+    "include": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Global list of file glob patterns to include in the scan"
+    },
+    "exclude": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Global list of file glob patterns to exclude from the scan"
+    },
+    "scan": {
+      "type": "object",
+      "properties": {
+        "include": { "type": "array", "items": { "type": "string" } },
+        "exclude": { "type": "array", "items": { "type": "string" } },
+        "parallel": { "type": "boolean", "default": true },
+        "deep": { "type": "boolean", "default": false },
+        "tools": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "pattern-detect",
+              "context-analyzer",
+              "naming-consistency",
+              "ai-signal-clarity",
+              "agent-grounding",
+              "testability-index",
+              "doc-drift",
+              "dependency-health",
+              "change-amplification",
+              "cognitive-load",
+              "pattern-entropy",
+              "concept-cohesion",
+              "semantic-distance"
+            ]
+          }
+        }
+      },
+      "description": "Scan-specific configuration"
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "format": {
+          "type": "string",
+          "enum": ["json", "console", "html"],
+          "default": "console"
+        },
+        "path": { "type": "string", "description": "Output file path" },
+        "saveTo": { "type": "string", "description": "Output directory" },
+        "showBreakdown": { "type": "boolean", "default": true },
+        "compareBaseline": {
+          "type": "string",
+          "description": "Baseline report to compare against"
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string",
+          "enum": ["strict", "balanced", "agentic", "cost"],
+          "default": "balanced"
+        },
+        "weights": {
+          "type": "object",
+          "additionalProperties": { "type": "number" }
+        }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "properties": {
+        "pattern-detect": {
+          "type": "object",
+          "properties": {
+            "minSimilarity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.8
+            },
+            "minLines": { "type": "integer", "minimum": 1, "default": 5 },
+            "minSharedTokens": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 10
+            },
+            "approx": { "type": "boolean", "default": true },
+            "batchSize": { "type": "integer", "default": 300 },
+            "maxCandidatesPerBlock": { "type": "integer", "default": 500 },
+            "minClusterFiles": { "type": "integer", "default": 3 },
+            "minClusterTokenCost": { "type": "integer", "default": 1000 }
+          }
+        },
+        "context-analyzer": {
+          "type": "object",
+          "properties": {
+            "maxContextBudget": { "type": "integer", "default": 128000 },
+            "minCohesion": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.6
+            },
+            "maxDepth": { "type": "integer", "default": 7 },
+            "maxFragmentation": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "default": 0.4
+            },
+            "focus": {
+              "type": "string",
+              "enum": ["fragmentation", "cohesion", "depth", "all"],
+              "default": "all"
+            },
+            "includeNodeModules": { "type": "boolean", "default": false }
+          }
+        },
+        "naming-consistency": {
+          "type": "object",
+          "properties": {
+            "checkNaming": { "type": "boolean", "default": true },
+            "checkPatterns": { "type": "boolean", "default": true },
+            "checkArchitecture": { "type": "boolean", "default": true },
+            "shortWords": { "type": "array", "items": { "type": "string" } },
+            "acceptedAbbreviations": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "disableChecks": { "type": "array", "items": { "type": "string" } }
+          }
+        },
+        "ai-signal-clarity": {
+          "type": "object",
+          "properties": {
+            "checkMagicLiterals": { "type": "boolean", "default": true },
+            "checkBooleanTraps": { "type": "boolean", "default": true },
+            "checkAmbiguousNames": { "type": "boolean", "default": true },
+            "checkUndocumentedExports": { "type": "boolean", "default": true },
+            "checkImplicitSideEffects": { "type": "boolean", "default": true },
+            "checkDeepCallbacks": { "type": "boolean", "default": true },
+            "checkOverloadedSymbols": { "type": "boolean", "default": true },
+            "checkLargeFiles": { "type": "boolean", "default": true }
+          }
+        },
+        "agent-grounding": {
+          "type": "object",
+          "properties": {
+            "maxRecommendedDepth": { "type": "integer", "default": 5 },
+            "readmeStaleDays": { "type": "integer", "default": 30 },
+            "additionalVagueNames": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "testability-index": {
+          "type": "object",
+          "properties": {
+            "minCoverageRatio": { "type": "number", "default": 0.7 },
+            "testPatterns": { "type": "array", "items": { "type": "string" } },
+            "maxDepth": { "type": "integer", "default": 10 }
+          }
+        },
+        "doc-drift": {
+          "type": "object",
+          "properties": {
+            "maxCommits": { "type": "integer", "default": 50 },
+            "staleMonths": { "type": "integer", "default": 3 }
+          }
+        },
+        "dependency-health": {
+          "type": "object",
+          "properties": {
+            "trainingCutoffYear": { "type": "integer", "default": 2023 }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "visualizer": {
+      "type": "object",
+      "properties": {
+        "groupingDirs": { "type": "array", "items": { "type": "string" } },
+        "graph": {
+          "type": "object",
+          "properties": {
+            "maxNodes": { "type": "integer", "default": 5000 },
+            "maxEdges": { "type": "integer", "default": 10000 }
+          }
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
