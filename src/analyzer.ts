@@ -170,6 +170,13 @@ export async function analyzeTestability(
     externalStateMutations: 0,
   };
 
+  // Collect file-level details for smarter scoring
+  const fileDetails: Array<{
+    filePath: string;
+    pureFunctions: number;
+    totalFunctions: number;
+  }> = [];
+
   let processed = 0;
   for (const f of sourceFiles) {
     processed++;
@@ -185,6 +192,13 @@ export async function analyzeTestability(
     for (const key of Object.keys(aggregated) as Array<keyof FileAnalysis>) {
       aggregated[key] += a[key];
     }
+
+    // Collect file-level data
+    fileDetails.push({
+      filePath: f,
+      pureFunctions: a.pureFunctions,
+      totalFunctions: a.totalFunctions,
+    });
   }
 
   const hasTestFramework = detectTestFramework(options.rootDir);
@@ -200,6 +214,7 @@ export async function analyzeTestability(
     totalInterfaces: Math.max(1, aggregated.totalInterfaces),
     externalStateMutations: aggregated.externalStateMutations,
     hasTestFramework,
+    fileDetails,
   });
 
   // Build issues
