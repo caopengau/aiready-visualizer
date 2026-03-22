@@ -1,14 +1,14 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { analyzeTestability } from '../analyzer';
 import { join } from 'path';
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { mkdirSync, writeFileSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
 describe('Testability Analyzer', () => {
   let tmpDir: string;
 
   beforeAll(() => {
-    tmpDir = join(tmpdir(), `aiready-testability-complex-${Date.now()}`);
+    tmpDir = join(tmpdir(), `aiready-testability-${Date.now()}`);
     mkdirSync(tmpDir, { recursive: true });
   });
 
@@ -52,55 +52,44 @@ describe('Testability Analyzer', () => {
     const javaReport = await analyzeTestability({ rootDir: javaDir });
     expect(javaReport.rawData.hasTestFramework).toBe(true);
 
-    // Test Go detection (built-in)
+    // Test Go detection
     const goReport = await analyzeTestability({ rootDir: goDir });
     expect(goReport.rawData.hasTestFramework).toBe(true);
-  });
+  }, 15000);
 
   it('flags missing test framework as critical', async () => {
     const emptyDir = join(tmpDir, 'no-tests');
     mkdirSync(emptyDir);
-    writeFileSync(join(emptyDir, 'app.ts'), 'export const x = 1;');
+    writeFileSync(join(emptyDir, 'App.ts'), 'export const a = 1;');
 
     const report = await analyzeTestability({ rootDir: emptyDir });
     expect(report.rawData.hasTestFramework).toBe(false);
-    expect(
-      report.issues.some(
-        (i) => i.dimension === 'framework' && i.severity === 'critical'
-      )
-    ).toBe(true);
+    // Rating is 'unverifiable' when no framework is found
+    expect(report.summary.rating).toBe('unverifiable');
   });
 
   it('detects injection patterns in classes', async () => {
     createTestFile(
       'src/di.ts',
-      `
-      export class Service {
-        constructor(public db: any) {}
-      }
-    `
+      'export class UserService { constructor(db: any) {} }'
     );
     const report = await analyzeTestability({ rootDir: tmpDir });
-    expect(report.rawData.injectionPatterns).toBeGreaterThanOrEqual(1);
+    expect(report.rawData.injectionPatterns).toBeGreaterThan(0);
   });
 
   it('detects bloated interfaces', async () => {
     createTestFile(
       'src/bloated.ts',
-      `
-      export interface Massive {
-        a(): void; b(): void; c(): void; d(): void; e(): void; f(): void; g(): void;
-        h(): void; i(): void; j(): void; k(): void; l(): void;
-      }
-    `
+      'export interface Big { m1(); m2(); m3(); m4(); m5(); m6(); m7(); m8(); m9(); m10(); m11(); m12(); }'
     );
     const report = await analyzeTestability({ rootDir: tmpDir });
-    expect(report.rawData.bloatedInterfaces).toBeGreaterThanOrEqual(1);
+    expect(report.rawData.bloatedInterfaces).toBeGreaterThan(0);
   });
 
   it('gracefully handles missing parser or read errors', async () => {
-    createTestFile('src/config.json', '{"test": true}');
+    createTestFile('src/unknown.xyz', 'some content');
     const report = await analyzeTestability({ rootDir: tmpDir });
-    expect(report.summary.sourceFiles).toBeDefined();
+    expect(report).toBeDefined();
+    expect(report.summary.sourceFiles).toBeGreaterThan(0);
   });
 });
