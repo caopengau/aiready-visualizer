@@ -3,7 +3,7 @@ import {
   calculateTestabilityIndex,
   Severity,
   IssueType,
-  emitProgress,
+  runBatchAnalysis,
   getParser,
 } from '@aiready/core';
 import { readFileSync, existsSync } from 'fs';
@@ -177,29 +177,28 @@ export async function analyzeTestability(
     totalFunctions: number;
   }> = [];
 
-  let processed = 0;
-  for (const f of sourceFiles) {
-    processed++;
-    emitProgress(
-      processed,
-      sourceFiles.length,
-      'testability',
-      'analyzing files',
-      options.onProgress
-    );
-
-    const a = await analyzeFileTestability(f);
-    for (const key of Object.keys(aggregated) as Array<keyof FileAnalysis>) {
-      aggregated[key] += a[key];
-    }
-
-    // Collect file-level data
-    fileDetails.push({
+  await runBatchAnalysis(
+    sourceFiles,
+    'analyzing files',
+    'testability',
+    options.onProgress,
+    async (f: string) => ({
       filePath: f,
-      pureFunctions: a.pureFunctions,
-      totalFunctions: a.totalFunctions,
-    });
-  }
+      analysis: await analyzeFileTestability(f),
+    }),
+    (result: { filePath: string; analysis: FileAnalysis }) => {
+      const a = result.analysis;
+      for (const key of Object.keys(aggregated) as Array<keyof FileAnalysis>) {
+        aggregated[key] += a[key];
+      }
+      // Collect file-level data
+      fileDetails.push({
+        filePath: result.filePath,
+        pureFunctions: a.pureFunctions,
+        totalFunctions: a.totalFunctions,
+      });
+    }
+  );
 
   const hasTestFramework = detectTestFramework(options.rootDir);
 
