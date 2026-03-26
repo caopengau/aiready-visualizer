@@ -395,6 +395,20 @@ export class GraphBuilder {
       }
     });
 
+    // 6. Contract Enforcement
+    const contractEnforcementResults = getResults(
+      ToolName.ContractEnforcement,
+      'contractEnforcement'
+    );
+    contractEnforcementResults.forEach((issue: any) => {
+      const file = issue.fileName ?? issue.location?.file;
+      if (file) {
+        builder.addNode(file, 'Contract Gap', 5);
+        const sev = rankSeverity(issue.severity ?? null);
+        bumpIssue(file, sev);
+      }
+    });
+
     // Finalize nodes: assign colors and duplicate counts based on collected issue data
     const nodes = Array.from((builder as any).nodesMap.values()) as FileNode[];
     const edges = (builder as any).edges as DependencyEdge[];
