@@ -16,11 +16,11 @@ This package provides tools to transform AIReady analysis results into interacti
                       │
                       ▼
          🎛️  @aiready/cli (orchestrator)
-          │     │     │     │     │     │     │     │     │
-          ▼     ▼     ▼     ▼     ▼     ▼     ▼     ▼     ▼
-        [PAT] [CTX] [CON] [AMP] [DEP] [DOC] [SIG] [AGT] [TST]
-          │     │     │     │     │     │     │     │     │
-          └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+          │     │     │     │     │     │     │     │     │     │
+          ▼     ▼     ▼     ▼     ▼     ▼     ▼     ▼     ▼     ▼
+        [PAT] [CTX] [CON] [AMP] [DEP] [DOC] [SIG] [AGT] [TST] [CTR]
+          │     │     │     │     │     │     │     │     │     │
+          └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
                                │
                                ▼
                       🏢 @aiready/core
@@ -30,7 +30,7 @@ Legend:
   CON = consistency           AMP = change-amplification
   DEP = deps-health           DOC = doc-drift
   SIG = ai-signal-clarity     AGT = agent-grounding
-  TST = testability
+  TST = testability           CTR = contract-enforcement
   VIZ = @aiready/visualizer ★  (support package — renders analysis results, not a scorer)
   ★   = YOU ARE HERE
 ```
