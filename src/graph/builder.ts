@@ -50,7 +50,11 @@ export class GraphBuilder {
   /**
    * Add a new node to the graph or update an existing one.
    */
-  addNode(file: string, title = '', size = GRAPH_CONSTANTS.DEFAULT_NODE_SIZE): void {
+  addNode(
+    file: string,
+    title = '',
+    size = GRAPH_CONSTANTS.DEFAULT_NODE_SIZE
+  ): void {
     if (!file) return;
     const id = path.resolve(this.rootDir, file);
     const existingNode = this.nodesMap.get(id);
@@ -65,8 +69,12 @@ export class GraphBuilder {
       };
       this.nodesMap.set(id, node);
     } else {
-      if (title && (!existingNode.title || !existingNode.title.includes(title))) {
-        existingNode.title = (existingNode.title ? existingNode.title + '\n' : '') + title;
+      if (
+        title &&
+        (!existingNode.title || !existingNode.title.includes(title))
+      ) {
+        existingNode.title =
+          (existingNode.title ? existingNode.title + '\n' : '') + title;
       }
       if (size > (existingNode.size ?? 0)) {
         existingNode.size = size;
@@ -143,7 +151,8 @@ export class GraphBuilder {
       if (severity) {
         if (
           !record.maxSeverity ||
-          GRAPH_CONSTANTS.SEVERITY_ORDER[severity] > GRAPH_CONSTANTS.SEVERITY_ORDER[record.maxSeverity]
+          GRAPH_CONSTANTS.SEVERITY_ORDER[severity] >
+            GRAPH_CONSTANTS.SEVERITY_ORDER[record.maxSeverity]
         ) {
           record.maxSeverity = severity;
         }
@@ -152,25 +161,59 @@ export class GraphBuilder {
 
     const getResults = (toolKey: string, legacyKey?: string): any[] => {
       const camelKey = toolKey.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-      const toolData = report[toolKey] ?? report[camelKey] ?? (legacyKey ? report[legacyKey] : undefined);
+      const toolData =
+        report[toolKey] ??
+        report[camelKey] ??
+        (legacyKey ? report[legacyKey] : undefined);
       if (!toolData) return [];
       if (Array.isArray(toolData)) return toolData;
       return toolData.results ?? toolData.issues ?? [];
     };
 
     // 1. Process Pattern Detect
-    this.processPatterns(builder, getResults(ToolName.PatternDetect, 'patterns'), rootDir, bumpIssue);
+    this.processPatterns(
+      builder,
+      getResults(ToolName.PatternDetect, 'patterns'),
+      rootDir,
+      bumpIssue
+    );
 
     // 2. Process Duplicates
     this.processDuplicates(builder, report, rootDir, fileIssues);
 
     // 3. Process Context Analyzer
-    this.processContext(builder, getResults(ToolName.ContextAnalyzer, 'context'), rootDir, bumpIssue);
+    this.processContext(
+      builder,
+      getResults(ToolName.ContextAnalyzer, 'context'),
+      rootDir,
+      bumpIssue
+    );
 
     // 4. Process Other Tools
-    this.processToolResults(builder, ToolName.DocDrift, 'docDrift', report, bumpIssue, 'Doc-Drift Issue');
-    this.processToolResults(builder, ToolName.DependencyHealth, 'dependencyHealth', report, bumpIssue, 'Dependency Issue');
-    this.processToolResults(builder, ToolName.ContractEnforcement, 'contractEnforcement', report, bumpIssue, 'Contract Gap');
+    this.processToolResults(
+      builder,
+      ToolName.DocDrift,
+      'docDrift',
+      report,
+      bumpIssue,
+      'Doc-Drift Issue'
+    );
+    this.processToolResults(
+      builder,
+      ToolName.DependencyHealth,
+      'dependencyHealth',
+      report,
+      bumpIssue,
+      'Dependency Issue'
+    );
+    this.processToolResults(
+      builder,
+      ToolName.ContractEnforcement,
+      'contractEnforcement',
+      report,
+      bumpIssue,
+      'Contract Gap'
+    );
 
     return this.finalizeGraph(builder, fileIssues, report);
   }
@@ -217,8 +260,14 @@ export class GraphBuilder {
       normalized.issues.forEach((issue: Issue) => {
         const refs = extractReferencedPaths(issue.message);
         refs.forEach((ref) => {
-          const target = path.isAbsolute(ref) ? ref : path.resolve(path.dirname(file), ref);
-          builder.addNode(target, 'Referenced file', GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE);
+          const target = path.isAbsolute(ref)
+            ? ref
+            : path.resolve(path.dirname(file), ref);
+          builder.addNode(
+            target,
+            'Referenced file',
+            GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE
+          );
           builder.addEdge(file, target, 'reference');
         });
 
@@ -232,11 +281,23 @@ export class GraphBuilder {
         if (wantFuzzy) {
           const fileGroup = getPackageGroup(file);
           for (const [base, pathsSet] of basenameMap.entries()) {
-            if (!issue.message.includes(base) || base === path.basename(file)) continue;
+            if (!issue.message.includes(base) || base === path.basename(file))
+              continue;
             for (const target of pathsSet) {
               const targetGroup = getPackageGroup(target);
-              if (fileGroup !== targetGroup && !(perc !== null && perc >= GRAPH_CONSTANTS.FUZZY_MATCH_HIGH_THRESHOLD)) continue;
-              builder.addNode(target, 'Fuzzy match', GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE);
+              if (
+                fileGroup !== targetGroup &&
+                !(
+                  perc !== null &&
+                  perc >= GRAPH_CONSTANTS.FUZZY_MATCH_HIGH_THRESHOLD
+                )
+              )
+                continue;
+              builder.addNode(
+                target,
+                'Fuzzy match',
+                GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE
+              );
               builder.addEdge(file, target, 'similarity');
             }
           }
@@ -251,15 +312,29 @@ export class GraphBuilder {
     rootDir: string,
     fileIssues: Map<string, FileIssueRecord>
   ): void {
-    const patternData = report[ToolName.PatternDetect] || report.patternDetect || report.patterns || {};
+    const patternData =
+      report[ToolName.PatternDetect] ||
+      report.patternDetect ||
+      report.patterns ||
+      {};
     const duplicates =
       (Array.isArray(patternData.duplicates) ? patternData.duplicates : null) ||
-      (patternData.summary && Array.isArray(patternData.summary.duplicates) ? patternData.summary.duplicates : null) ||
+      (patternData.summary && Array.isArray(patternData.summary.duplicates)
+        ? patternData.summary.duplicates
+        : null) ||
       (Array.isArray(report.duplicates) ? report.duplicates : []);
 
     duplicates.forEach((dup: any) => {
-      builder.addNode(dup.file1, 'Similarity target', GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE);
-      builder.addNode(dup.file2, 'Similarity target', GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE);
+      builder.addNode(
+        dup.file1,
+        'Similarity target',
+        GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE
+      );
+      builder.addNode(
+        dup.file2,
+        'Similarity target',
+        GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE
+      );
       builder.addEdge(dup.file1, dup.file2, 'similarity');
 
       [dup.file1, dup.file2].forEach((file) => {
@@ -283,23 +358,34 @@ export class GraphBuilder {
       const file = normalized.fileName;
       if (!file) return;
 
-      builder.addNode(file, `Deps: ${ctx.dependencyCount || 0}`, GRAPH_CONSTANTS.DEFAULT_CONTEXT_SIZE);
+      builder.addNode(
+        file,
+        `Deps: ${ctx.dependencyCount || 0}`,
+        GRAPH_CONSTANTS.DEFAULT_CONTEXT_SIZE
+      );
 
       normalized.issues.forEach((issue: Issue) => {
         bumpIssue(file, issue.severity);
       });
 
       (ctx.relatedFiles ?? []).forEach((rel: string) => {
-        const resolvedRel = path.isAbsolute(rel) ? rel : path.resolve(path.dirname(file), rel);
+        const resolvedRel = path.isAbsolute(rel)
+          ? rel
+          : path.resolve(path.dirname(file), rel);
         const resolvedFile = path.resolve(builder.rootDir, file);
         const resolvedTarget = path.resolve(builder.rootDir, resolvedRel);
 
         const keyA = `${resolvedFile}->${resolvedTarget}`;
         const keyB = `${resolvedTarget}->${resolvedFile}`;
 
-        if (builder['edgesSet'].has(keyA) || builder['edgesSet'].has(keyB)) return;
+        if (builder['edgesSet'].has(keyA) || builder['edgesSet'].has(keyB))
+          return;
 
-        builder.addNode(resolvedRel, 'Related file', GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE);
+        builder.addNode(
+          resolvedRel,
+          'Related file',
+          GRAPH_CONSTANTS.DEFAULT_REFERENCE_SIZE
+        );
 
         const node = builder['nodesMap'].get(resolvedTarget);
         if (node) {
@@ -321,7 +407,11 @@ export class GraphBuilder {
           ];
           for (const p of possiblePaths) {
             if (fs.existsSync(p)) {
-              builder.addNode(p, 'Dependency', GRAPH_CONSTANTS.DEFAULT_DEPENDENCY_SIZE);
+              builder.addNode(
+                p,
+                'Dependency',
+                GRAPH_CONSTANTS.DEFAULT_DEPENDENCY_SIZE
+              );
               builder.addEdge(file, p, 'dependency');
               break;
             }
@@ -343,7 +433,9 @@ export class GraphBuilder {
     const toolData = report[toolName] ?? report[camelKey] ?? report[legacyKey];
     if (!toolData) return;
 
-    const results = Array.isArray(toolData) ? toolData : toolData.results ?? toolData.issues ?? [];
+    const results = Array.isArray(toolData)
+      ? toolData
+      : (toolData.results ?? toolData.issues ?? []);
     results.forEach((item: any) => {
       // Support flat format where item IS the issue (seen in tests and legacy outputs)
       if (!Array.isArray(item.issues) && (item.severity || item.message)) {
@@ -366,7 +458,11 @@ export class GraphBuilder {
     });
   }
 
-  private static finalizeGraph(builder: GraphBuilder, fileIssues: Map<string, FileIssueRecord>, report: any): GraphData {
+  private static finalizeGraph(
+    builder: GraphBuilder,
+    fileIssues: Map<string, FileIssueRecord>,
+    report: any
+  ): GraphData {
     const graph = builder.build();
 
     let criticalIssues = 0;
@@ -381,10 +477,14 @@ export class GraphBuilder {
         node.color = getColorForSeverity(record.maxSeverity);
         node.group = getPackageGroup(node.id);
 
-        if (record.maxSeverity === Severity.Critical) criticalIssues += record.count;
-        else if (record.maxSeverity === Severity.Major) majorIssues += record.count;
-        else if (record.maxSeverity === Severity.Minor) minorIssues += record.count;
-        else if (record.maxSeverity === Severity.Info) infoIssues += record.count;
+        if (record.maxSeverity === Severity.Critical)
+          criticalIssues += record.count;
+        else if (record.maxSeverity === Severity.Major)
+          majorIssues += record.count;
+        else if (record.maxSeverity === Severity.Minor)
+          minorIssues += record.count;
+        else if (record.maxSeverity === Severity.Info)
+          infoIssues += record.count;
       } else {
         node.color = getColorForSeverity(null);
         node.group = getPackageGroup(node.id);
@@ -413,7 +513,11 @@ export function createSampleGraph(): GraphData {
   builder.addNode('src/components/Button.tsx', 'Button', 15);
   builder.addNode('src/utils/helpers.ts', 'helpers', 12);
   builder.addNode('src/services/api.ts', 'api', 18);
-  builder.addEdge('src/components/Button.tsx', 'src/utils/helpers.ts', 'dependency');
+  builder.addEdge(
+    'src/components/Button.tsx',
+    'src/utils/helpers.ts',
+    'dependency'
+  );
   builder.addEdge('src/utils/helpers.ts', 'src/services/api.ts', 'dependency');
   return builder.build();
 }
