@@ -17,6 +17,17 @@ interface GraphCanvasProps {
   onNodeClick: (node: FileNode | null) => void;
 }
 
+interface D3Node extends d3.SimulationNodeDatum, FileNode {
+  fx?: number | null;
+  fy?: number | null;
+}
+
+interface D3Link extends d3.SimulationLinkDatum<D3Node> {
+  source: D3Node;
+  target: D3Node;
+  type: string;
+}
+
 export function GraphCanvas({
   data,
   dimensions,
@@ -42,18 +53,18 @@ export function GraphCanvas({
     const svgGroup = svg.append('g');
 
     // Setup zoom
-    const zoom = (d3 as any)
-      .zoom()
+    const zoom = d3
+      .zoom<SVGSVGElement, unknown>()
       .scaleExtent([GRAPH_CONFIG.zoomMin, GRAPH_CONFIG.zoomMax])
-      .on('zoom', (event: any) => {
-        svgGroup.attr('transform', event.transform);
+      .on('zoom', (event: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+        svgGroup.attr('transform', event.transform.toString());
         zoomTransformRef.current = event.transform;
       });
-    svg.call(zoom);
-    svg.call(zoom.transform, zoomTransformRef.current);
+    svg.call(zoom as any);
+    svg.call(zoom.transform as any, zoomTransformRef.current);
 
     // Prepare nodes and links
-    const nodes = data.nodes.map((d, i) => {
+    const nodes: D3Node[] = data.nodes.map((d, i) => {
       // Initialize nodes in a circle around center with slight random spread
       const angle = (i / data.nodes.length) * Math.PI * 2;
       const radius = 50 + Math.random() * 30;
@@ -63,22 +74,27 @@ export function GraphCanvas({
         y: height / 2 + Math.sin(angle) * radius,
       };
     });
-    const links = data.edges.map((d) => ({ ...d }));
+    const links: D3Link[] = data.edges.map((d) => {
+      // Find source and target nodes to satisfy D3Link interface
+      const source = nodes.find((n) => n.id === d.source) || nodes[0];
+      const target = nodes.find((n) => n.id === d.target) || nodes[0];
+      return {
+        ...d,
+        source,
+        target,
+      };
+    });
 
     // Create force simulation
     const simulation = d3
-      .forceSimulation(nodes as d3.SimulationNodeDatum[])
+      .forceSimulation<D3Node>(nodes)
       .force(
         'link',
         d3
-          .forceLink(links)
-          .id((d: unknown) => (d as { id: string }).id)
-          .distance((d: unknown) =>
-            getEdgeDistance((d as { type: string }).type)
-          )
-          .strength((d: unknown) =>
-            getEdgeStrength((d as { type: string }).type)
-          )
+          .forceLink<D3Node, D3Link>(links)
+          .id((d) => d.id)
+          .distance((d) => getEdgeDistance(d.type))
+          .strength((d) => getEdgeStrength(d.type))
       )
       .force(
         'charge',
@@ -87,15 +103,15 @@ export function GraphCanvas({
       .force('center', d3.forceCenter(width / 2, height / 2))
       .force(
         'collision',
-        d3.forceCollide().radius(GRAPH_CONFIG.collisionRadius)
+        d3.forceCollide<D3Node>().radius(GRAPH_CONFIG.collisionRadius)
       )
       .force(
         'x',
-        d3.forceX(width / 2).strength(GRAPH_CONFIG.simulation.centerStrength)
+        d3.forceX<D3Node>(width / 2).strength(GRAPH_CONFIG.simulation.centerStrength)
       )
       .force(
         'y',
-        d3.forceY(height / 2).strength(GRAPH_CONFIG.simulation.centerStrength)
+        d3.forceY<D3Node>(height / 2).strength(GRAPH_CONFIG.simulation.centerStrength)
       );
 
     // Create link group
@@ -105,17 +121,9 @@ export function GraphCanvas({
       .data(links)
       .enter()
       .append('line')
-      .attr(
-        'stroke',
-        (d: unknown) =>
-          edgeColors[(d as { type: string }).type] || edgeColors.default
-      )
-      .attr('stroke-opacity', (d: unknown) =>
-        getEdgeOpacity((d as { type: string }).type)
-      )
-      .attr('stroke-width', (d: unknown) =>
-        getEdgeStrokeWidth((d as { type: string }).type)
-      );
+      .attr('stroke', (d) => edgeColors[d.type] || edgeColors.default)
+      .attr('stroke-opacity', (d) => getEdgeOpacity(d.type))
+      .attr('stroke-width', (d) => getEdgeStrokeWidth(d.type));
 
     // Create node group
     const nodeGroup = svgGroup.append('g').attr('class', 'nodes');
@@ -127,8 +135,8 @@ export function GraphCanvas({
       .append('g')
       .attr('cursor', 'pointer')
       .call(
-        (d3 as any)
-          .drag()
+        d3
+          .drag<SVGGElement, D3Node>()
           .on('start', dragstarted)
           .on('drag', dragged)
           .on('end', dragended) as any
@@ -137,32 +145,17 @@ export function GraphCanvas({
     // Add circles to nodes
     node
       .append('circle')
-      .attr(
-        'r',
-        (d: unknown) =>
-          Math.sqrt((d as { value: number }).value || 10) +
-          GRAPH_CONFIG.nodeBaseRadius
-      )
-      .attr(
-        'fill',
-        (d: unknown) => (d as { color: string }).color || severityColors.default
-      )
+      .attr('r', (d) => Math.sqrt(d.value || 10) + GRAPH_CONFIG.nodeBaseRadius)
+      .attr('fill', (d) => d.color || severityColors.default)
       .attr('stroke', effectiveTheme === 'dark' ? '#fff' : '#000')
       .attr('stroke-width', 1.5);
 
     // Add labels to nodes
     node
       .append('text')
-      .text(
-        (d: unknown) =>
-          (d as { label: string }).label.split('/').pop() ||
-          (d as { label: string }).label
-      )
+      .text((d) => d.label.split('/').pop() || d.label)
       .attr('x', 0)
-      .attr(
-        'y',
-        (d: unknown) => Math.sqrt((d as { value: number }).value || 10) + 12
-      )
+      .attr('y', (d) => Math.sqrt(d.value || 10) + 12)
       .attr('text-anchor', 'middle')
       .attr('fill', effectiveTheme === 'dark' ? '#e2e8f0' : '#1e293b')
       .attr('font-size', '9px')
@@ -170,47 +163,42 @@ export function GraphCanvas({
       .attr('pointer-events', 'none');
 
     // Add tooltips
-    node.append('title').text((d: unknown) => (d as { title: string }).title);
+    node.append('title').text((d) => d.title);
 
     // Event handlers
-    node.on('click', (event: unknown, d: unknown) => {
-      (event as Event).stopPropagation();
-      onNodeClick(d as FileNode);
+    node.on('click', (event: MouseEvent, d: D3Node) => {
+      event.stopPropagation();
+      onNodeClick(d);
     });
     svg.on('click', () => onNodeClick(null));
 
     // Simulation tick
     simulation.on('tick', () => {
       link
-        .attr('x1', (d: unknown) => (d as { source: { x: number } }).source.x)
-        .attr('y1', (d: unknown) => (d as { source: { y: number } }).source.y)
-        .attr('x2', (d: unknown) => (d as { target: { x: number } }).target.x)
-        .attr('y2', (d: unknown) => (d as { target: { y: number } }).target.y);
+        .attr('x1', (d) => (d.source as D3Node).x || 0)
+        .attr('y1', (d) => (d.source as D3Node).y || 0)
+        .attr('x2', (d) => (d.target as D3Node).x || 0)
+        .attr('y2', (d) => (d.target as D3Node).y || 0);
 
-      node.attr(
-        'transform',
-        (d: unknown) =>
-          `translate(${(d as { x: number }).x},${(d as { y: number }).y})`
-      );
+      node.attr('transform', (d) => `translate(${d.x || 0},${d.y || 0})`);
     });
 
     // Drag functions
-    function dragstarted(event: unknown, d: unknown) {
-      if (!(event as { active: boolean }).active)
-        simulation.alphaTarget(0.3).restart();
-      (d as { fx: number | null }).fx = (d as { x: number }).x;
-      (d as { fy: number | null }).fy = (d as { y: number }).y;
+    function dragstarted(event: d3.D3DragEvent<SVGGElement, D3Node, D3Node>, d: D3Node) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
     }
 
-    function dragged(event: unknown, d: unknown) {
-      (d as { fx: number }).fx = (event as { x: number }).x;
-      (d as { fy: number }).fy = (event as { y: number }).y;
+    function dragged(event: d3.D3DragEvent<SVGGElement, D3Node, D3Node>, d: D3Node) {
+      d.fx = event.x;
+      d.fy = event.y;
     }
 
-    function dragended(event: unknown, d: unknown) {
-      if (!(event as { active: boolean }).active) simulation.alphaTarget(0);
-      (d as { fx: null }).fx = null;
-      (d as { fy: null }).fy = null;
+    function dragended(event: d3.D3DragEvent<SVGGElement, D3Node, D3Node>, d: D3Node) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
     }
 
     return () => {

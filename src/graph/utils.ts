@@ -3,7 +3,7 @@
  */
 
 import path from 'path';
-import { Severity } from '@aiready/core';
+import { Severity, normalizeSeverity } from '@aiready/core';
 
 /**
  * Constants for graph building
@@ -76,13 +76,7 @@ export function getPackageGroup(
  * Ranks severity from a string or null.
  */
 export function rankSeverity(s: string | null | undefined): Severity | null {
-  if (!s) return null;
-  const ss = String(s).toLowerCase();
-  if (ss.includes('critical')) return Severity.Critical;
-  if (ss.includes('major')) return Severity.Major;
-  if (ss.includes('minor')) return Severity.Minor;
-  if (ss.includes('info')) return Severity.Info;
-  return null;
+  return normalizeSeverity(s || undefined);
 }
 
 /**
