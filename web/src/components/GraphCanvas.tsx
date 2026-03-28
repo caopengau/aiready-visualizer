@@ -60,8 +60,8 @@ export function GraphCanvas({
         svgGroup.attr('transform', event.transform.toString());
         zoomTransformRef.current = event.transform;
       });
-    svg.call(zoom as any);
-    svg.call(zoom.transform as any, zoomTransformRef.current);
+    svg.call(zoom);
+    svg.call(zoom.transform, zoomTransformRef.current);
 
     // Prepare nodes and links
     const nodes: D3Node[] = data.nodes.map((d, i) => {
@@ -82,6 +82,7 @@ export function GraphCanvas({
         ...d,
         source,
         target,
+        type: d.type || 'default',
       };
     });
 
@@ -139,7 +140,7 @@ export function GraphCanvas({
           .drag<SVGGElement, D3Node>()
           .on('start', dragstarted)
           .on('drag', dragged)
-          .on('end', dragended) as any
+          .on('end', dragended)
       );
 
     // Add circles to nodes
@@ -163,7 +164,7 @@ export function GraphCanvas({
       .attr('pointer-events', 'none');
 
     // Add tooltips
-    node.append('title').text((d) => d.title);
+    node.append('title').text((d) => d.title || '');
 
     // Event handlers
     node.on('click', (event: MouseEvent, d: D3Node) => {
