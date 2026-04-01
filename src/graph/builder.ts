@@ -10,7 +10,7 @@ import {
   type AnalysisResult,
 } from '@aiready/core';
 import type { GraphData, FileNode, DependencyEdge } from '../types';
-import { GRAPH_CONSTANTS, normalizeLabel, rankSeverity } from './utils';
+import { GRAPH_CONSTANTS, normalizeLabel } from './utils';
 import { GraphProcessors, type FileIssueRecord } from './processors';
 
 /**
