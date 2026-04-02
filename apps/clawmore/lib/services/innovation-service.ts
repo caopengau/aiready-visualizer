@@ -11,7 +11,6 @@ import {
 import { InnovationPatternRecord } from '../types/models';
 import { KeyBuilder } from '../ddb/key-builder';
 import { UpdateBuilder } from '../ddb/update-builder';
-import { QueryBuilder, queryByPKPrefix } from '../ddb/query-builder';
 import { dbConfig } from '../ddb/env-config';
 
 export interface CreateInnovationPatternInput {
@@ -62,12 +61,17 @@ export class InnovationService {
    * Get all pending innovation patterns.
    */
   async getPendingPatterns(): Promise<InnovationPatternRecord[]> {
-    const queryParams = new QueryBuilder({ scanIndexForward: false })
-      .pk('PK', 'INNOVATION')
-      .sk('SK', 'begins', 'PATTERN#')
-      .build(dbConfig.tableName);
-
-    const response = await this.docClient.send(new QueryCommand(queryParams));
+    const response = await this.docClient.send(
+      new QueryCommand({
+        TableName: dbConfig.tableName,
+        KeyConditionExpression: 'PK = :pk AND begins_with(SK, :sk_prefix)',
+        ExpressionAttributeValues: {
+          ':pk': 'INNOVATION',
+          ':sk_prefix': 'PATTERN#',
+        },
+        ScanIndexForward: false, // Recent first
+      })
+    );
 
     return (response.Items || []) as InnovationPatternRecord[];
   }

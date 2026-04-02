@@ -142,46 +142,4 @@ export const CodePatterns = {
     ).length;
     return reExportLines > 0 && reExportLines / lines.length > 0.5;
   },
-
-  // Type-only definition patterns
-  hasOnlyTypeDefinitions: (code: string): boolean => {
-    const hasTypes =
-      code.includes('interface ') ||
-      code.includes('type ') ||
-      code.includes('enum ');
-    const hasNoImpl = ![
-      'function ',
-      'class ',
-      'const ',
-      'let ',
-      'var ',
-      'export default',
-    ].some((kw) => {
-      // Exclude these keywords from export statements that are just re-exporting types
-      if (kw === 'export default' && code.includes('export default')) {
-        return !code.match(/export\s+default\s+(?:interface|type|enum)/);
-      }
-      return code.includes(kw);
-    });
-    return hasTypes && hasNoImpl;
-  },
-
-  isInterfaceOnlySnippet: (code: string): boolean => {
-    const lines = code.split('\n').filter((l) => l.trim());
-    if (lines.length === 0) return false;
-    const interfaceLines = lines.filter((l) =>
-      /^(?:export\s+)?interface\s+/.test(l.trim())
-    );
-    return (
-      interfaceLines.length > 0 && interfaceLines.length / lines.length > 0.5
-    );
-  },
-
-  // Utility helper pattern
-  hasUtilPattern: (code: string): boolean =>
-    CodePatterns.hasKeywordGroup(code, [
-      'export function',
-      'export const',
-      'function ',
-    ]) && !code.includes('class '),
 };

@@ -21,14 +21,6 @@ export * from './types/models';
 // Export utilities
 export { KeyBuilder } from './ddb/key-builder';
 export { UpdateBuilder } from './ddb/update-builder';
-export {
-  QueryBuilder,
-  queryByGSI1,
-  queryByGSI1PK,
-  queryByGSI1Prefix,
-  queryByPK,
-  queryByPKPrefix,
-} from './ddb/query-builder';
 export { dbConfig } from './ddb/env-config';
 
 // Export input types for client code
