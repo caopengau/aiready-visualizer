@@ -74,7 +74,7 @@ define sync_to_github
 	git branch -D "$$branch" >/dev/null 2>&1 || true; \
 	$(call log_info,Creating subtree split for $(1)...); \
 	git subtree split --prefix="$(1)" -b "$$branch" >/dev/null; \
-	if [ -n "$(strip $(6))" ]; then \
+	$(if $(strip $(6)), \
 		$(call log_info,Running cleanup for split branch...); \
 		git checkout "$$branch" 2>/dev/null; \
 		$(6); \
@@ -82,7 +82,7 @@ define sync_to_github
 			git commit -m "chore: cleanup sensitive files for standalone repo" >/dev/null 2>&1; \
 		fi; \
 		git checkout $(TARGET_BRANCH) 2>/dev/null; \
-	fi; \
+	) \
 	split_commit=$$(git rev-parse "$$branch"); \
 	git push --no-verify -f "$$remote" "$$branch":$(4); \
 	$(call log_success,Synced $(1) to GitHub repo ($(4))); \
