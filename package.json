@@ -1,6 +1,6 @@
 {
   "name": "@aiready/visualizer",
-  "version": "0.7.16",
+  "version": "0.7.17",
   "description": "Interactive graph visualization for AIReady analysis results",
   "type": "module",
   "main": "./dist/index.js",
@@ -77,7 +77,7 @@
     "tailwindcss": "^4.2.2",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
-    "vite": "^5.4.21",
+    "vite": "^8.0.4",
     "vitest": "^4.1.2"
   }
 }
