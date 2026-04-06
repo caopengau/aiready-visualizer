@@ -12,10 +12,9 @@ import { spawn } from 'child_process';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { GraphBuilder, createSampleGraph } from '../graph/builder';
-import { generateHTML } from '@aiready/core';
+import { generateHTML, getDirname } from '@aiready/core';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getDirname(import.meta.url);
 
 const WEB_PORT = 8000;
 
