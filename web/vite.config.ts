@@ -53,7 +53,9 @@ export default defineConfig(({ command }): UserConfig => {
               try {
                 const visualizerConfig = JSON.parse(visualizerConfigStr);
                 report.visualizerConfig = visualizerConfig;
-              } catch (e) {}
+              } catch (_e) {
+                console.warn('Failed to parse visualizerConfigStr', _e);
+              }
             }
 
             res.statusCode = 200;
