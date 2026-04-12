@@ -1,6 +1,6 @@
 {
   "name": "@aiready/visualizer",
-  "version": "0.7.24",
+  "version": "0.7.25",
   "description": "Interactive graph visualization for AIReady analysis results",
   "type": "module",
   "main": "./dist/index.js",
