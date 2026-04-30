@@ -9,8 +9,7 @@
 
 import { Command } from 'commander';
 import { spawn } from 'child_process';
-import { resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { resolve } from 'path';
 import { GraphBuilder, createSampleGraph } from '../graph/builder';
 import { generateHTML, getDirname } from '@aiready/core';
 
