@@ -1,6 +1,5 @@
 import { test, expect, vi } from 'vitest';
 import { GraphBuilder } from '../src/graph/builder';
-import fs from 'fs';
 
 vi.mock('fs', async () => {
   const actual = (await vi.importActual('fs')) as any;

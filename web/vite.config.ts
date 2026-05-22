@@ -20,7 +20,7 @@ export default defineConfig(({ command }): UserConfig => {
         require.resolve('@aiready/components'),
         '../../src'
       );
-    } catch (e) {
+    } catch (_e) {
       // Use build dist as last resort
       componentsPath = resolve(__dirname, '../../components/dist');
     }
@@ -62,7 +62,7 @@ export default defineConfig(({ command }): UserConfig => {
             res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.end(JSON.stringify(report));
             return;
-          } catch (e) {
+          } catch (_e) {
             res.statusCode = 500;
             res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             res.end('Error reading report');
